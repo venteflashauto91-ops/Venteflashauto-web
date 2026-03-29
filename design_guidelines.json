@@ -1,0 +1,186 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast - Conversion Optimized)",
+  "design_philosophy": "Ultra conversion-optimized, fast, and mobile-first automotive buyback landing page. Professional, trustworthy, and fast. Relies on high-contrast primary CTAs (Orange) against deep authoritative backgrounds (Dark Blue) and clean white/gray spaces for forms.",
+  "colors": {
+    "primary": {
+      "DEFAULT": "#FF5C00",
+      "hover": "#E65200",
+      "foreground": "#FFFFFF",
+      "description": "High-visibility action color for Main CTAs, Sticky Estimate Button, and active progress steps."
+    },
+    "secondary": {
+      "DEFAULT": "#1E2A44",
+      "hover": "#2A3A5E",
+      "foreground": "#FFFFFF",
+      "description": "Deep Dark Blue for Headings, Footer, Header, and high-contrast section backgrounds."
+    },
+    "background": {
+      "DEFAULT": "#FFFFFF",
+      "alt": "#F3F4F6",
+      "description": "Crisp white and light gray alternating sections to separate content clearly."
+    },
+    "success": {
+      "DEFAULT": "#22C55E",
+      "foreground": "#FFFFFF",
+      "description": "Green accents for form validation, checkmarks, and reassuring security messages."
+    },
+    "text": {
+      "primary": "#1E2A44",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif"
+    },
+    "scales": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-none",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#1E2A44]",
+      "h3": "text-xl sm:text-2xl font-semibold text-[#1E2A44]",
+      "body": "text-base sm:text-lg text-gray-600 leading-relaxed",
+      "small": "text-sm text-gray-500",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00]"
+    },
+    "rules": "Never use Inter for headings. Keep tight line-heights for headings and generous line-heights for body text. Use bold weights for numbers and key stats."
+  },
+  "spacing_and_layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_padding": "py-16 md:py-24",
+    "grid_bento": "grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8",
+    "card_padding": "p-6 md:p-8",
+    "border_radius": "rounded-xl",
+    "shadows": {
+      "card": "shadow-lg shadow-black/5",
+      "floating_cta": "shadow-2xl shadow-[#FF5C00]/30"
+    },
+    "mobile_first_rules": "Always stack columns on mobile. Ensure tap targets (buttons, inputs) are at least 48px high. Forms must have massive input fields for easy typing on mobile."
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#FF5C00] text-white hover:bg-[#E65200] font-bold text-lg px-8 py-4 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2",
+      "secondary": "bg-[#1E2A44] text-white hover:bg-[#2A3A5E] font-bold px-6 py-3 rounded-xl transition-all",
+      "outline": "border-2 border-[#1E2A44] text-[#1E2A44] hover:bg-gray-50 font-bold px-6 py-3 rounded-xl"
+    },
+    "inputs": {
+      "license_plate": "text-center text-3xl font-black tracking-widest uppercase border-4 border-gray-300 focus:border-[#FF5C00] rounded-xl h-16 w-full placeholder:text-gray-300",
+      "standard": "bg-white border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl px-4 py-3 w-full text-lg",
+      "label": "block text-sm font-bold text-[#1E2A44] mb-2"
+    },
+    "cards": {
+      "base": "bg-white rounded-xl border border-gray-100 shadow-lg shadow-black/5 p-6 md:p-8 hover:-translate-y-1 transition-transform duration-300"
+    },
+    "shadcn_customizations": {
+      "carousel": "Use for Vehicle Examples and Testimonials. Add visible navigation arrows on desktop, swipeable on mobile.",
+      "progress": "Use for the 6-step form indicator. Color the filled track with #FF5C00 and background with gray-200."
+    },
+    "icons": {
+      "library": "lucide-react",
+      "usage": "Use Car for vehicles, ShieldCheck for security/trust, Clock for speed (24h), Star for reviews, MapPin for centers, CheckCircle2 for green validations."
+    }
+  },
+  "form_strategy": {
+    "type": "progressive_multistep",
+    "steps": [
+      { "id": 1, "name": "Identification", "description": "License plate input" },
+      { "id": 2, "name": "Informations", "description": "Mileage, year, fuel, condition" },
+      { "id": 3, "name": "État & Photos", "description": "Upload exterior/interior photos" },
+      { "id": 4, "name": "Coordonnées", "description": "Name, Email, Phone number" },
+      { "id": 5, "name": "Rendez-vous", "description": "Select date and time slot" },
+      { "id": 6, "name": "Confirmation", "description": "Success message and recap" }
+    ],
+    "design_rules": "Keep the form inside a dedicated high-focus card container. Hide distractions during the form steps. Use large, selectable tiles instead of standard dropdowns for choices like 'Condition' (e.g., Excellent, Good, Average) to optimize mobile UX."
+  },
+  "pages_and_sections": {
+    "header": {
+      "layout": "Sticky top, z-50, bg-white/90 backdrop-blur-md border-b border-gray-100",
+      "content": "Logo (left), Sticky 'Estimer mon véhicule' Button (right, hidden when hero CTA is visible)."
+    },
+    "hero": {
+      "layout": "Relative full width, min-h-[80vh] flex items-center",
+      "background": "Dark overlay (bg-[#1E2A44]/80) over modern car background image",
+      "content": "H1 'Vendez votre voiture en 24h', Subtitle 'Estimation gratuite et sans engagement', large License Plate Input Box directly in hero, massive Orange 'Estimer' CTA.",
+      "trust_badges": "Below CTA: 'Paiement sécurisé', 'Sans engagement', 'Vendu en 24h' with Lucide ShieldCheck/Clock icons in green/white."
+    },
+    "social_proof": {
+      "layout": "bg-white py-8 border-b border-gray-100",
+      "content": "Trustpilot style stars (5 green stars), '+500 véhicules vendus ce mois-ci', 'Élu service client de l\\'année'."
+    },
+    "how_it_works": {
+      "layout": "bg-[#F3F4F6] py-24",
+      "content": "Section Title: 'Comment ça marche ?'. 3 Bento-style Grid Cards: 1. Estimez en ligne (Icon: Laptop), 2. Prenez rendez-vous (Icon: Calendar), 3. Recevez votre paiement (Icon: Banknotes). Add subtle step numbers (1, 2, 3) behind icons."
+    },
+    "vehicle_examples": {
+      "layout": "bg-white py-24",
+      "content": "Title: 'Ils nous ont fait confiance'. Shadcn Carousel showing recent cars purchased with estimated price overlays (e.g., 'Peugeot 208 - Achetée 12 500€')."
+    },
+    "testimonials": {
+      "layout": "bg-[#1E2A44] py-24 text-white",
+      "content": "Title: 'Avis Clients'. 3 Column grid of review cards. Dark cards with white text, 5 yellow/orange stars, customer avatars."
+    },
+    "contact_centers": {
+      "layout": "bg-white py-24",
+      "content": "Title: 'Trouvez un centre près de chez vous'. 2 Columns: Text info + Contact Details vs Placeholder Map / Center List (Paris, Lyon, Marseille)."
+    },
+    "footer": {
+      "layout": "bg-[#1E2A44] py-12 border-t border-white/10 text-gray-400",
+      "content": "Logo, Links (CGV, Mentions légales, Contact), Copyright 2026."
+    },
+    "sticky_estimate_cta": {
+      "behavior": "Fixed at the bottom of the screen on mobile, or bottom right on desktop. Only appears after scrolling past the Hero section. Massive Orange Button: 'Estimer ma voiture'. z-50."
+    }
+  },
+  "animations": {
+    "hover": "Buttons scale down slightly (active:scale-95) for tactile feedback. Cards lift slightly (hover:-translate-y-1).",
+    "form_transitions": "Framer Motion slide-in (x: 20, opacity: 0 -> x: 0, opacity: 1) between form steps.",
+    "scroll": "Fade-up entrance animations for main sections."
+  },
+  "accessibility": {
+    "contrast": "Ensure white text on #FF5C00 passes contrast. #1E2A44 provides massive contrast for reading.",
+    "focus": "All form inputs must have focus:ring-4 focus:ring-[#FF5C00]/20 for clear keyboard navigation.",
+    "test_ids": "All buttons, inputs, and form step navigations MUST include descriptive data-testid attributes."
+  },
+  "image_urls": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1766918070754-0518b6505df5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxwcmVtaXVtJTIwY2FyJTIwbW9kZXJufGVufDB8fHx8MTc3NDgxOTEzNHww&ixlib=rb-4.1.0&q=85",
+      "description": "Dark sedan parked on a gravel road. Perfect for placing a dark #1E2A44/80 overlay to make white text pop.",
+      "category": "hero"
+    },
+    "testimonial_avatar_1": {
+      "url": "https://images.pexels.com/photos/7144229/pexels-photo-7144229.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Smiling woman holding car key.",
+      "category": "testimonial"
+    },
+    "testimonial_avatar_2": {
+      "url": "https://images.unsplash.com/photo-1753161023792-d240af5e6ef7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHwxfHxoYXBweSUyMGN1c3RvbWVyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc0ODE5MTM1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Happy smiling customer.",
+      "category": "testimonial"
+    },
+    "testimonial_avatar_3": {
+      "url": "https://images.pexels.com/photos/7682203/pexels-photo-7682203.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Confident smiling agent/customer.",
+      "category": "testimonial"
+    },
+    "vehicle_example_1": {
+      "url": "https://images.pexels.com/photos/5076489/pexels-photo-5076489.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Exterior view of car dealership, cars under bright sky.",
+      "category": "gallery"
+    },
+    "vehicle_example_2": {
+      "url": "https://images.unsplash.com/photo-1763071686691-3f77692c5ebc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwyfHxjYXIlMjBkZWFsZXJzaGlwJTIwbW9kZXJufGVufDB8fHx8MTc3NDgxOTEzNXww&ixlib=rb-4.1.0&q=85",
+      "description": "Row of SUVs parked in a lot.",
+      "category": "gallery"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build the multi-step form inside the Hero section or directly below it as the primary interactive element.",
+    "Implement the progressive form using a state manager (e.g. React state with `step` variable). Only show one step at a time.",
+    "Ensure the license plate input (Step 1) has a distinct visual style (look like an actual European license plate: white/blue borders, centered text).",
+    "Use Shadcn UI components for inputs, selects (or selectable cards for better mobile UX), progress bar, and carousels.",
+    "Strictly follow the color palette. #FF5C00 is reserved ONLY for the primary action buttons (Submit, Next Step, Estimate). Do not use it for text or backgrounds unless specified.",
+    "Add 'data-testid' to every interactive element (form inputs, buttons, step nav).",
+    "Implement the Sticky 'Estimer' button to appear on scroll for mobile and desktop, linking back to the form."
+  ]
+}
