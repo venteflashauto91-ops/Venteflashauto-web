@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Car, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import FormStep1 from '@/components/form/FormStep1';
 import FormStep2 from '@/components/form/FormStep2';
@@ -10,6 +10,8 @@ import FormStep5 from '@/components/form/FormStep5';
 import FormStep6 from '@/components/form/FormStep6';
 import { trackEvent, EVENTS } from '@/lib/tracking';
 import { savePartialLead } from '@/lib/api';
+
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
 const STEP_NAMES = ['Identification', 'Informations', 'Etat & Photos', 'Coordonnees', 'Rendez-vous', 'Confirmation'];
 
@@ -72,11 +74,9 @@ export default function FormPage() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="form-logo-link">
-            <div className="w-8 h-8 bg-[#FF5C00] rounded-lg flex items-center justify-center">
-              <Car className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-['Outfit'] font-extrabold text-lg text-[#1E2A44]">
-              VenteFlash<span className="text-[#FF5C00]">Auto</span>
+            <img src={LOGO_URL} alt="Venteflashauto" className="h-8 md:h-10 w-auto object-contain" />
+            <span className="font-['Outfit'] font-extrabold text-lg text-[#2B3A67]">
+              <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#E84D1C]">auto</span>
             </span>
           </Link>
           {step < 6 && (
@@ -91,20 +91,20 @@ export default function FormPage() {
         {/* Progress bar */}
         {step < 6 && (
           <div className="mb-8" data-testid="form-progress">
-            <Progress value={progress} className="h-2 bg-gray-200 [&>div]:bg-[#FF5C00]" />
+            <Progress value={progress} className="h-2 bg-gray-200 [&>div]:bg-[#E84D1C]" />
             <div className="flex justify-between mt-3">
               {STEP_NAMES.slice(0, 5).map((name, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                       i + 1 < step ? 'bg-[#22C55E] text-white' :
-                      i + 1 === step ? 'bg-[#FF5C00] text-white' :
+                      i + 1 === step ? 'bg-[#E84D1C] text-white' :
                       'bg-gray-200 text-gray-500'
                     }`}
                   >
                     {i + 1 < step ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
                   </div>
-                  <span className={`hidden md:inline text-xs font-medium ${i + 1 === step ? 'text-[#1E2A44]' : 'text-gray-400'}`}>
+                  <span className={`hidden md:inline text-xs font-medium ${i + 1 === step ? 'text-[#2B3A67]' : 'text-gray-400'}`}>
                     {name}
                   </span>
                 </div>

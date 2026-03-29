@@ -9,7 +9,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-4">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#1E2A44] mb-2">
+      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Vos coordonnees
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Pour recevoir votre offre et planifier le rendez-vous.</p>
@@ -17,53 +17,53 @@ export default function FormStep4({ data, update, onNext, onBack }) {
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-bold text-[#1E2A44] mb-2">Prenom</label>
+            <label className="block text-sm font-bold text-[#2B3A67] mb-2">Prenom</label>
             <Input
               data-testid="form-prenom"
               placeholder="Jean"
               value={c.prenom}
               onChange={(e) => set('prenom', e.target.value)}
-              className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+              className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
             />
           </div>
           <div>
-            <label className="block text-sm font-bold text-[#1E2A44] mb-2">Nom</label>
+            <label className="block text-sm font-bold text-[#2B3A67] mb-2">Nom</label>
             <Input
               data-testid="form-nom"
               placeholder="Dupont"
               value={c.nom}
               onChange={(e) => set('nom', e.target.value)}
-              className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+              className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-[#1E2A44] mb-2">Email</label>
+          <label className="block text-sm font-bold text-[#2B3A67] mb-2">Email</label>
           <Input
             data-testid="form-email"
             type="email"
             placeholder="jean.dupont@email.com"
             value={c.email}
             onChange={(e) => set('email', e.target.value)}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-[#1E2A44] mb-2">Telephone</label>
+          <label className="block text-sm font-bold text-[#2B3A67] mb-2">Telephone</label>
           <Input
             data-testid="form-telephone"
             type="tel"
             placeholder="06 12 34 56 78"
             value={c.telephone}
             onChange={(e) => set('telephone', e.target.value)}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-[#1E2A44] mb-2">Code postal</label>
+          <label className="block text-sm font-bold text-[#2B3A67] mb-2">Code postal</label>
           <Input
             data-testid="form-code-postal"
             type="text"
@@ -71,7 +71,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
             value={c.code_postal}
             onChange={(e) => set('code_postal', e.target.value)}
             maxLength={5}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
           />
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
         data-testid="form-step4-next"
         onClick={onNext}
         disabled={!canContinue}
-        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 mt-8 bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#E84D1C]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continuer
       </Button>

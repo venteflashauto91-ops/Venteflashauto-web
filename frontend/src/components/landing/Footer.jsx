@@ -1,20 +1,16 @@
-import { Car } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
 export default function Footer() {
   return (
-    <footer data-testid="footer" className="bg-[#1E2A44] py-12 border-t border-white/10">
+    <footer data-testid="footer" className="bg-[#2B3A67] py-12 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Logo */}
           <div>
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-[#FF5C00] rounded-lg flex items-center justify-center">
-                <Car className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-['Outfit'] font-extrabold text-lg text-white">
-                VenteFlash<span className="text-[#FF5C00]">Auto</span>
-              </span>
+            <Link to="/" className="inline-block mb-4">
+              <img src={LOGO_URL} alt="Venteflashauto" className="h-10 w-auto object-contain" />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
               Le service de reprise automobile rapide, fiable et transparent.
@@ -49,7 +45,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">&copy; 2026 VenteFlashAuto. Tous droits reserves.</p>
+          <p className="text-xs text-gray-500">&copy; 2026 Venteflashauto. Tous droits reserves.</p>
           <p className="text-xs text-gray-500">Paiement securise - Sans engagement</p>
         </div>
       </div>

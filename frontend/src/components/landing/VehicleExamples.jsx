@@ -15,8 +15,8 @@ export default function VehicleExamples() {
     <section data-testid="vehicle-examples-section" className="bg-white py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00] mb-3">Ventes recentes</p>
-          <h2 className="font-['Outfit'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#1E2A44]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E84D1C] mb-3">Ventes recentes</p>
+          <h2 className="font-['Outfit'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Ils nous ont fait confiance
           </h2>
         </div>
@@ -34,13 +34,13 @@ export default function VehicleExamples() {
                       alt={`${v.marque} ${v.modele}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#1E2A44]/90 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg">
-                      <BadgeEuro className="w-4 h-4 text-[#FF5C00]" />
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#2B3A67]/90 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg">
+                      <BadgeEuro className="w-4 h-4 text-[#E84D1C]" />
                       {v.prix} EUR
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-['Outfit'] font-bold text-[#1E2A44]">{v.marque} {v.modele}</h3>
+                    <h3 className="font-['Outfit'] font-bold text-[#2B3A67]">{v.marque} {v.modele}</h3>
                     <p className="text-sm text-gray-500">Achetee en {v.annee}</p>
                   </div>
                 </div>

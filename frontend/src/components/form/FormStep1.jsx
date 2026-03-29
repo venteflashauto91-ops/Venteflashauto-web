@@ -45,7 +45,7 @@ export default function FormStep1({ data, update, onNext }) {
 
   return (
     <div data-testid="form-step-1">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#1E2A44] mb-2">
+      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Identifiez votre vehicule
       </h2>
       <p className="text-gray-500 mb-8">
@@ -54,7 +54,7 @@ export default function FormStep1({ data, update, onNext }) {
 
       <div className="space-y-6">
         <div>
-          <label className="block text-sm font-bold text-[#1E2A44] mb-2">Immatriculation</label>
+          <label className="block text-sm font-bold text-[#2B3A67] mb-2">Immatriculation</label>
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <div className="absolute left-0 top-0 bottom-0 w-10 bg-[#003DA5] rounded-l-xl flex items-center justify-center z-10">
@@ -66,7 +66,7 @@ export default function FormStep1({ data, update, onNext }) {
                 value={immat}
                 onChange={(e) => { setImmat(e.target.value.toUpperCase()); setIdentified(false); setError(''); }}
                 placeholder="AA-123-BB"
-                className="w-full h-14 pl-14 pr-4 text-xl font-black tracking-widest uppercase text-center bg-white border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl placeholder:text-gray-300 transition-all"
+                className="w-full h-14 pl-14 pr-4 text-xl font-black tracking-widest uppercase text-center bg-white border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl placeholder:text-gray-300 transition-all"
                 maxLength={10}
                 onKeyDown={(e) => e.key === 'Enter' && handleIdentify()}
               />
@@ -75,7 +75,7 @@ export default function FormStep1({ data, update, onNext }) {
               data-testid="form-identify-btn"
               onClick={handleIdentify}
               disabled={loading}
-              className="h-14 bg-[#1E2A44] hover:bg-[#2A3A5E] text-white font-bold px-6 rounded-xl"
+              className="h-14 bg-[#2B3A67] hover:bg-[#3B4D8A] text-white font-bold px-6 rounded-xl"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
             </Button>
@@ -93,25 +93,25 @@ export default function FormStep1({ data, update, onNext }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-gray-500">Marque</p>
-                <p className="font-bold text-[#1E2A44]">{data.vehicule.marque}</p>
+                <p className="font-bold text-[#2B3A67]">{data.vehicule.marque}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Modele</p>
-                <p className="font-bold text-[#1E2A44]">{data.vehicule.modele}</p>
+                <p className="font-bold text-[#2B3A67]">{data.vehicule.modele}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Version</p>
-                <p className="font-bold text-[#1E2A44] text-sm">{data.vehicule.version}</p>
+                <p className="font-bold text-[#2B3A67] text-sm">{data.vehicule.version}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Annee</p>
-                <p className="font-bold text-[#1E2A44]">{data.vehicule.annee}</p>
+                <p className="font-bold text-[#2B3A67]">{data.vehicule.annee}</p>
               </div>
             </div>
             {data.estimation && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-500 mb-1">Estimation indicative</p>
-                <p className="font-['Outfit'] text-3xl font-black text-[#FF5C00]">
+                <p className="font-['Outfit'] text-3xl font-black text-[#E84D1C]">
                   {Number(data.estimation).toLocaleString('fr-FR')} EUR
                 </p>
                 <p className="text-xs text-gray-400 mt-1">Prix final apres expertise en centre</p>
@@ -124,7 +124,7 @@ export default function FormStep1({ data, update, onNext }) {
           <Button
             data-testid="form-step1-next"
             onClick={onNext}
-            className="w-full h-14 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all"
+            className="w-full h-14 bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#E84D1C]/30 active:scale-95 transition-all"
           >
             Continuer
           </Button>

@@ -5,10 +5,10 @@
 @tailwind utilities;
 
 :root {
-  --navy: #1E2A44;
-  --navy-light: #2A3A5E;
-  --orange: #FF5C00;
-  --orange-hover: #E65200;
+  --navy: #2B3A67;
+  --navy-light: #3B4D8A;
+  --orange: #E84D1C;
+  --orange-hover: #D4410F;
   --green: #22C55E;
   --gray-bg: #F3F4F6;
   --gray-text: #4B5563;
@@ -30,14 +30,14 @@ h1, h2, h3, h4, h5, h6 {
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 216 39% 19%;
+    --foreground: 222 40% 28%;
     --card: 0 0% 100%;
-    --card-foreground: 216 39% 19%;
+    --card-foreground: 222 40% 28%;
     --popover: 0 0% 100%;
-    --popover-foreground: 216 39% 19%;
-    --primary: 21 100% 50%;
+    --popover-foreground: 222 40% 28%;
+    --primary: 14 83% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 216 39% 19%;
+    --secondary: 222 40% 28%;
     --secondary-foreground: 0 0% 100%;
     --muted: 220 14% 96%;
     --muted-foreground: 220 9% 46%;
@@ -47,7 +47,7 @@ h1, h2, h3, h4, h5, h6 {
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 21 100% 50%;
+    --ring: 14 83% 50%;
     --chart-1: 21 100% 50%;
     --chart-2: 142 71% 45%;
     --chart-3: 216 39% 19%;
@@ -99,8 +99,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 92, 0, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(255, 92, 0, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 77, 28, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(232, 77, 28, 0); }
 }
 
 .animate-fade-in-up {

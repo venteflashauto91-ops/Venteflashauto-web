@@ -1,8 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ShieldCheck, Clock, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, ShieldCheck, Clock, Zap } from 'lucide-react';
 import { trackEvent, EVENTS } from '@/lib/tracking';
+
+/* Inline SVG city skyline - matches the original venteflashauto.fr style */
+function CitySkyline() {
+  return (
+    <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 1440 320" preserveAspectRatio="none" style={{ height: '60%', opacity: 0.25 }}>
+      <rect x="50" y="120" width="60" height="200" fill="#1E2A55" rx="2"/>
+      <rect x="130" y="80" width="45" height="240" fill="#232F5E" rx="2"/>
+      <rect x="190" y="140" width="70" height="180" fill="#1A2650" rx="2"/>
+      <rect x="280" y="60" width="50" height="260" fill="#263562" rx="2"/>
+      <rect x="350" y="100" width="80" height="220" fill="#1E2A55" rx="2"/>
+      <rect x="450" y="50" width="55" height="270" fill="#2A3A6E" rx="2"/>
+      <rect x="520" y="90" width="65" height="230" fill="#1F2D58" rx="2"/>
+      <rect x="600" y="130" width="50" height="190" fill="#253260" rx="2"/>
+      <rect x="670" y="70" width="75" height="250" fill="#1C2852" rx="2"/>
+      <rect x="760" y="110" width="55" height="210" fill="#2B3B70" rx="2"/>
+      <rect x="830" y="55" width="60" height="265" fill="#1E2A55" rx="2"/>
+      <rect x="910" y="95" width="70" height="225" fill="#232F5E" rx="2"/>
+      <rect x="1000" y="65" width="50" height="255" fill="#263562" rx="2"/>
+      <rect x="1070" y="120" width="65" height="200" fill="#1A2650" rx="2"/>
+      <rect x="1150" y="80" width="55" height="240" fill="#2A3A6E" rx="2"/>
+      <rect x="1220" y="100" width="80" height="220" fill="#1F2D58" rx="2"/>
+      <rect x="1320" y="60" width="60" height="260" fill="#253260" rx="2"/>
+      <rect x="1390" y="130" width="50" height="190" fill="#1C2852" rx="2"/>
+      {/* Clouds */}
+      <ellipse cx="200" cy="60" rx="80" ry="20" fill="#3B4D8A" opacity="0.3"/>
+      <ellipse cx="700" cy="40" rx="100" ry="22" fill="#3B4D8A" opacity="0.25"/>
+      <ellipse cx="1100" cy="55" rx="90" ry="18" fill="#3B4D8A" opacity="0.3"/>
+    </svg>
+  );
+}
 
 export default function HeroSection() {
   const [immat, setImmat] = useState('');
@@ -18,79 +47,63 @@ export default function HeroSection() {
   return (
     <section
       data-testid="hero-section"
-      className="relative min-h-[90vh] flex items-center overflow-hidden"
+      className="relative min-h-[85vh] flex items-center overflow-hidden"
+      style={{ background: 'linear-gradient(180deg, #2B3A67 0%, #303B6E 40%, #3B4D8A 100%)' }}
     >
-      {/* Background image + overlay */}
-      <div className="absolute inset-0">
-        <img
-          src="https://images.unsplash.com/photo-1766918070754-0518b6505df5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwzfHxwcmVtaXVtJTIwY2FyJTIwbW9kZXJufGVufDB8fHx8MTc3NDgxOTEzNHww&ixlib=rb-4.1.0&q=85"
-          alt="Voiture premium"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-[#1E2A44]/80 pointer-events-none" />
-      </div>
+      <CitySkyline />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-24">
-        <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00] mb-4 animate-fade-in-up">
-            Service de reprise automobile
-          </p>
-          <h1
-            data-testid="hero-title"
-            className="font-['Outfit'] text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-none text-white mb-6 animate-fade-in-up stagger-1"
-          >
-            Vendez votre voiture <span className="text-[#FF5C00]">en 24h</span>
-          </h1>
-          <p className="text-base sm:text-lg text-white/80 leading-relaxed mb-10 animate-fade-in-up stagger-2">
-            Estimation gratuite et sans engagement. Recevez une offre pour votre
-            vehicule en quelques minutes.
-          </p>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-24 text-center">
+        <h1
+          data-testid="hero-title"
+          className="font-['Outfit'] text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight text-white mb-4 animate-fade-in-up"
+        >
+          Vendez votre <span className="text-[#E84D1C] italic">Voiture</span> en 24h
+        </h1>
+        <p
+          data-testid="hero-subtitle"
+          className="font-['Outfit'] text-2xl sm:text-3xl lg:text-4xl font-bold text-[#E84D1C] mb-10 animate-fade-in-up stagger-1"
+        >
+          Estimation en ligne
+        </p>
 
-          {/* License plate form */}
-          <form
-            onSubmit={handleEstimate}
-            className="animate-fade-in-up stagger-3"
-            data-testid="hero-estimation-form"
-          >
-            <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
-              <div className="flex-1 relative">
-                <div className="absolute left-0 top-0 bottom-0 w-10 bg-[#003DA5] rounded-l-xl flex items-center justify-center z-10">
-                  <span className="text-white font-extrabold text-xs">F</span>
-                </div>
-                <input
-                  data-testid="hero-immat-input"
-                  type="text"
-                  value={immat}
-                  onChange={(e) => setImmat(e.target.value.toUpperCase())}
-                  placeholder="AA-123-BB"
-                  className="w-full h-14 sm:h-16 pl-14 pr-4 text-xl sm:text-2xl font-black tracking-widest uppercase text-center bg-white border-3 border-[#1E2A44] rounded-xl focus:outline-none focus:ring-4 focus:ring-[#FF5C00]/30 placeholder:text-gray-300"
-                  maxLength={10}
-                />
-              </div>
-              <Button
-                data-testid="hero-estimate-btn"
-                type="submit"
-                className="h-14 sm:h-16 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg px-8 rounded-xl transition-all shadow-lg shadow-[#FF5C00]/30 active:scale-95 flex items-center justify-center gap-2 animate-pulse-glow"
-              >
-                Estimer
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </div>
-          </form>
-
-          {/* Trust badges */}
-          <div className="flex flex-wrap gap-6 mt-8 animate-fade-in-up stagger-4">
-            {[
-              { icon: ShieldCheck, text: 'Sans engagement' },
-              { icon: Clock, text: 'Paiement en 24h' },
-              { icon: Zap, text: 'Estimation immediate' },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2">
-                <Icon className="w-5 h-5 text-[#22C55E]" />
-                <span className="text-sm text-white/80 font-medium">{text}</span>
-              </div>
-            ))}
+        {/* License plate form */}
+        <form
+          onSubmit={handleEstimate}
+          className="animate-fade-in-up stagger-2 max-w-lg mx-auto"
+          data-testid="hero-estimation-form"
+        >
+          <div className="bg-white rounded-xl p-2 shadow-2xl flex items-center">
+            <input
+              data-testid="hero-immat-input"
+              type="text"
+              value={immat}
+              onChange={(e) => setImmat(e.target.value.toUpperCase())}
+              placeholder="ex: AA111BB ou 111AAA22"
+              className="flex-1 h-12 sm:h-14 px-4 text-base sm:text-lg font-semibold text-[#2B3A67] placeholder:text-gray-400 focus:outline-none bg-transparent"
+              maxLength={12}
+            />
+            <button
+              data-testid="hero-estimate-btn"
+              type="submit"
+              className="h-12 sm:h-14 w-14 bg-[#E84D1C] hover:bg-[#D4410F] rounded-lg flex items-center justify-center transition-all active:scale-95 shrink-0"
+            >
+              <Search className="w-5 h-5 text-white" />
+            </button>
           </div>
+        </form>
+
+        {/* Trust badges */}
+        <div className="flex flex-wrap justify-center gap-6 mt-10 animate-fade-in-up stagger-3">
+          {[
+            { icon: ShieldCheck, text: 'Sans engagement' },
+            { icon: Clock, text: 'Paiement en 24h' },
+            { icon: Zap, text: 'Estimation immediate' },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-center gap-2">
+              <Icon className="w-5 h-5 text-[#22C55E]" />
+              <span className="text-sm text-white/80 font-medium">{text}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

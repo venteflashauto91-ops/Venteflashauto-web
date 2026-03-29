@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Car, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
+
+const navLinks = [
+  { label: 'Accueil', href: '#' },
+  { label: 'Rachat Cash', href: '#comment-ca-marche' },
+  { label: 'FAQ', href: '#faq' },
+  { label: 'Contact', href: '#centres' },
+];
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -19,36 +28,40 @@ export default function Header() {
       data-testid="main-header"
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? 'rgba(255,255,255,0.95)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(12px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : 'none',
+        background: scrolled ? 'rgba(255,255,255,0.97)' : 'rgba(43,58,103,0.85)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.08)',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 md:h-20">
-        <Link to="/" className="flex items-center gap-2 group" data-testid="logo-link">
-          <div className="w-10 h-10 bg-[#FF5C00] rounded-xl flex items-center justify-center">
-            <Car className="w-6 h-6 text-white" />
-          </div>
-          <span className={`font-['Outfit'] font-extrabold text-xl tracking-tight transition-colors ${scrolled ? 'text-[#1E2A44]' : 'text-white'}`}>
-            VenteFlash<span className="text-[#FF5C00]">Auto</span>
-          </span>
+        <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="logo-link">
+          <img
+            src={LOGO_URL}
+            alt="Venteflashauto"
+            className="h-10 md:h-12 w-auto object-contain"
+          />
+          {scrolled && (
+            <span className="font-['Outfit'] font-extrabold text-lg text-[#2B3A67]">
+              <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#E84D1C]">auto</span>
+            </span>
+          )}
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          <a href="#comment-ca-marche" className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#1E2A44] hover:text-[#FF5C00]' : 'text-white/80 hover:text-white'}`}>
-            Comment ca marche
-          </a>
-          <a href="#temoignages" className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#1E2A44] hover:text-[#FF5C00]' : 'text-white/80 hover:text-white'}`}>
-            Avis clients
-          </a>
-          <a href="#centres" className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#1E2A44] hover:text-[#FF5C00]' : 'text-white/80 hover:text-white'}`}>
-            Nos centres
-          </a>
+        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+          {navLinks.map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#2B3A67] hover:text-[#E84D1C]' : 'text-white/90 hover:text-white'}`}
+            >
+              {label}
+            </a>
+          ))}
           <Button
             data-testid="header-estimate-btn"
             onClick={() => navigate('/estimation')}
-            className={`bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold px-6 py-2.5 rounded-xl transition-all active:scale-95 ${scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold px-6 py-2.5 rounded-lg transition-all active:scale-95 ${scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             Estimer mon vehicule
           </Button>
@@ -61,8 +74,8 @@ export default function Header() {
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen
-            ? <X className={scrolled ? 'text-[#1E2A44]' : 'text-white'} />
-            : <Menu className={scrolled ? 'text-[#1E2A44]' : 'text-white'} />
+            ? <X className={scrolled ? 'text-[#2B3A67]' : 'text-white'} />
+            : <Menu className={scrolled ? 'text-[#2B3A67]' : 'text-white'} />
           }
         </button>
       </div>
@@ -71,13 +84,13 @@ export default function Header() {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 shadow-lg" data-testid="mobile-menu">
           <div className="px-4 py-4 space-y-3">
-            <a href="#comment-ca-marche" className="block text-sm font-semibold text-[#1E2A44]" onClick={() => setMenuOpen(false)}>Comment ca marche</a>
-            <a href="#temoignages" className="block text-sm font-semibold text-[#1E2A44]" onClick={() => setMenuOpen(false)}>Avis clients</a>
-            <a href="#centres" className="block text-sm font-semibold text-[#1E2A44]" onClick={() => setMenuOpen(false)}>Nos centres</a>
+            {navLinks.map(({ label, href }) => (
+              <a key={label} href={href} className="block text-sm font-semibold text-[#2B3A67]" onClick={() => setMenuOpen(false)}>{label}</a>
+            ))}
             <Button
               data-testid="mobile-estimate-btn"
               onClick={() => { setMenuOpen(false); navigate('/estimation'); }}
-              className="w-full bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold rounded-xl"
+              className="w-full bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold rounded-lg"
             >
               Estimer mon vehicule
             </Button>

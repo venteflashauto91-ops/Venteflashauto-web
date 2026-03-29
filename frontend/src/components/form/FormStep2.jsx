@@ -12,7 +12,7 @@ const boolFields = [
 function BoolSelector({ label, value, onChange, testId }) {
   return (
     <div>
-      <p className="text-sm font-bold text-[#1E2A44] mb-2">{label}</p>
+      <p className="text-sm font-bold text-[#2B3A67] mb-2">{label}</p>
       <div className="flex gap-3">
         {[{ val: true, lbl: 'Oui' }, { val: false, lbl: 'Non' }].map(({ val, lbl }) => (
           <button
@@ -22,7 +22,7 @@ function BoolSelector({ label, value, onChange, testId }) {
             onClick={() => onChange(val)}
             className={`flex-1 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
               value === val
-                ? 'bg-[#FF5C00]/10 border-[#FF5C00] text-[#FF5C00]'
+                ? 'bg-[#E84D1C]/10 border-[#E84D1C] text-[#E84D1C]'
                 : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
             }`}
           >
@@ -42,7 +42,7 @@ export default function FormStep2({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-2">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#1E2A44] mb-2">
+      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Informations vehicule
       </h2>
       <p className="text-gray-500 mb-2 text-sm">
@@ -52,14 +52,14 @@ export default function FormStep2({ data, update, onNext, onBack }) {
 
       <div className="space-y-5">
         <div>
-          <label className="block text-sm font-bold text-[#1E2A44] mb-2">Kilometrage</label>
+          <label className="block text-sm font-bold text-[#2B3A67] mb-2">Kilometrage</label>
           <Input
             data-testid="form-km-input"
             type="number"
             placeholder="Ex: 85000"
             value={v.kilometrage}
             onChange={(e) => set('kilometrage', e.target.value)}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl text-lg"
+            className="h-12 border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl text-lg"
           />
           <p className="text-xs text-gray-400 mt-1">Kilometrage actuel du vehicule</p>
         </div>
@@ -79,7 +79,7 @@ export default function FormStep2({ data, update, onNext, onBack }) {
         data-testid="form-step2-next"
         onClick={onNext}
         disabled={!canContinue}
-        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 mt-8 bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#E84D1C]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continuer
       </Button>
