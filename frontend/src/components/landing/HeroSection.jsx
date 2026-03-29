@@ -27,7 +27,7 @@ export default function HeroSection() {
           alt="Voiture premium"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-[#1E2A44]/80" />
+        <div className="absolute inset-0 bg-[#1E2A44]/80 pointer-events-none" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-24">
