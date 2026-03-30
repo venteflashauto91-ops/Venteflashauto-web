@@ -66,7 +66,7 @@ export default function FormStep6({ data }) {
         {/* Vehicle */}
         <div className="bg-[#F3F4F6] rounded-xl p-5" data-testid="recap-vehicle">
           <div className="flex items-center gap-2 mb-3">
-            <Car className="w-5 h-5 text-[#FF5C00]" />
+            <Car className="w-5 h-5 text-[#ff4605]" />
             <h3 className="font-bold text-[#2B3A67]">Vehicule</h3>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -80,7 +80,7 @@ export default function FormStep6({ data }) {
           {data.estimation && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <span className="text-gray-500 text-sm">Estimation:</span>
-              <span className="font-['Mulish'] text-xl font-black text-[#FF5C00] ml-2">
+              <span className="font-['Mulish'] text-xl font-black text-[#ff4605] ml-2">
                 {Number(data.estimation).toLocaleString('fr-FR')} EUR
               </span>
             </div>
@@ -90,7 +90,7 @@ export default function FormStep6({ data }) {
         {/* Client */}
         <div className="bg-[#F3F4F6] rounded-xl p-5" data-testid="recap-client">
           <div className="flex items-center gap-2 mb-3">
-            <User className="w-5 h-5 text-[#FF5C00]" />
+            <User className="w-5 h-5 text-[#ff4605]" />
             <h3 className="font-bold text-[#2B3A67]">Coordonnees</h3>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -104,7 +104,7 @@ export default function FormStep6({ data }) {
         {/* RDV */}
         <div className="bg-[#F3F4F6] rounded-xl p-5" data-testid="recap-rdv">
           <div className="flex items-center gap-2 mb-3">
-            <CalendarDays className="w-5 h-5 text-[#FF5C00]" />
+            <CalendarDays className="w-5 h-5 text-[#ff4605]" />
             <h3 className="font-bold text-[#2B3A67]">Rendez-vous</h3>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -125,7 +125,7 @@ export default function FormStep6({ data }) {
         data-testid="form-submit-btn"
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all"
+        className="w-full h-14 mt-8 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all"
       >
         {loading ? (
           <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Envoi en cours...</>

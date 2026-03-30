@@ -15,7 +15,7 @@ export default function ContactSection() {
     <section id="centres" data-testid="contact-section" className="bg-white py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00] mb-3">Nos centres</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff4605] mb-3">Nos centres</p>
           <h2 className="font-['Mulish'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Trouvez un centre pres de chez vous
           </h2>
@@ -28,8 +28,8 @@ export default function ContactSection() {
               className="bg-white rounded-xl border border-gray-100 shadow-lg shadow-black/5 p-6 hover:-translate-y-1 transition-transform duration-300"
             >
               <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-[#FF5C00]/10 flex items-center justify-center shrink-0">
-                  <MapPin className="w-5 h-5 text-[#FF5C00]" />
+                <div className="w-10 h-10 rounded-lg bg-[#ff4605]/10 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-[#ff4605]" />
                 </div>
                 <div>
                   <h3 className="font-['Mulish'] font-bold text-[#2B3A67] text-lg">{c.name}</h3>
@@ -47,7 +47,7 @@ export default function ContactSection() {
           <Button
             data-testid="contact-rdv-btn"
             onClick={() => navigate('/estimation')}
-            className="bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg px-8 py-4 rounded-xl transition-all shadow-lg shadow-[#FF5C00]/30 active:scale-95"
+            className="bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg px-8 py-4 rounded-xl transition-all shadow-lg shadow-[#ff4605]/30 active:scale-95"
           >
             Prendre rendez-vous
           </Button>
@@ -56,15 +56,15 @@ export default function ContactSection() {
         {/* Contact row */}
         <div className="mt-12 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-sm text-gray-600">
           <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 text-[#FF5C00]" />
+            <Phone className="w-4 h-4 text-[#ff4605]" />
             <span>01 42 00 00 00</span>
           </div>
           <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-[#FF5C00]" />
+            <Mail className="w-4 h-4 text-[#ff4605]" />
             <span>contact@venteflashauto.fr</span>
           </div>
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-[#FF5C00]" />
+            <MapPin className="w-4 h-4 text-[#ff4605]" />
             <span>5 centres en France</span>
           </div>
         </div>

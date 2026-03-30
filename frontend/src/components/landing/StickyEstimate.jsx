@@ -18,7 +18,7 @@ export default function StickyEstimate() {
     <button
       data-testid="sticky-estimate-btn"
       onClick={() => navigate('/estimation')}
-      className="fixed bottom-6 right-6 z-50 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-base px-6 py-4 rounded-xl shadow-2xl shadow-[#FF5C00]/30 transition-all active:scale-95 flex items-center gap-2 animate-pulse-glow md:bottom-8 md:right-8"
+      className="fixed bottom-6 right-6 z-50 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-base px-6 py-4 rounded-xl shadow-2xl shadow-[#ff4605]/30 transition-all active:scale-95 flex items-center gap-2 animate-pulse-glow md:bottom-8 md:right-8"
     >
       Estimer ma voiture
       <ArrowRight className="w-5 h-5" />

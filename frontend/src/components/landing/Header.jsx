@@ -42,7 +42,7 @@ export default function Header() {
           />
           {scrolled && (
             <span className="font-['Mulish'] font-extrabold text-base text-[#2B3A67]">
-              V<span className="text-[#2B3A67]">enteflash</span><span className="text-[#FF5C00]">auto</span>
+              V<span className="text-[#2B3A67]">enteflash</span><span className="text-[#ff4605]">auto</span>
             </span>
           )}
         </Link>
@@ -53,7 +53,7 @@ export default function Header() {
             <a
               key={label}
               href={href}
-              className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#2B3A67] hover:text-[#FF5C00]' : 'text-white/90 hover:text-white'}`}
+              className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#2B3A67] hover:text-[#ff4605]' : 'text-white/90 hover:text-white'}`}
             >
               {label}
             </a>
@@ -61,7 +61,7 @@ export default function Header() {
           <Button
             data-testid="header-estimate-btn"
             onClick={() => navigate('/estimation')}
-            className={`bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold px-6 py-2.5 rounded-lg transition-all active:scale-95 ${scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            className={`bg-[#ff4605] hover:bg-[#E65200] text-white font-bold px-6 py-2.5 rounded-lg transition-all active:scale-95 ${scrolled ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             Estimer mon vehicule
           </Button>
@@ -90,7 +90,7 @@ export default function Header() {
             <Button
               data-testid="mobile-estimate-btn"
               onClick={() => { setMenuOpen(false); navigate('/estimation'); }}
-              className="w-full bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold rounded-lg"
+              className="w-full bg-[#ff4605] hover:bg-[#E65200] text-white font-bold rounded-lg"
             >
               Estimer mon vehicule
             </Button>

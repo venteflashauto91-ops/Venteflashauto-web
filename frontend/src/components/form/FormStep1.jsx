@@ -66,7 +66,7 @@ export default function FormStep1({ data, update, onNext }) {
                 value={immat}
                 onChange={(e) => { setImmat(e.target.value.toUpperCase()); setIdentified(false); setError(''); }}
                 placeholder="AA-123-BB"
-                className="w-full h-14 pl-14 pr-4 text-xl font-black tracking-widest uppercase text-center bg-white border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl placeholder:text-gray-300 transition-all"
+                className="w-full h-14 pl-14 pr-4 text-xl font-black tracking-widest uppercase text-center bg-white border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl placeholder:text-gray-300 transition-all"
                 maxLength={10}
                 onKeyDown={(e) => e.key === 'Enter' && handleIdentify()}
               />
@@ -111,7 +111,7 @@ export default function FormStep1({ data, update, onNext }) {
             {data.estimation && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-500 mb-1">Estimation indicative</p>
-                <p className="font-['Mulish'] text-3xl font-black text-[#FF5C00]">
+                <p className="font-['Mulish'] text-3xl font-black text-[#ff4605]">
                   {Number(data.estimation).toLocaleString('fr-FR')} EUR
                 </p>
                 <p className="text-xs text-gray-400 mt-1">Prix final apres expertise en centre</p>
@@ -124,7 +124,7 @@ export default function FormStep1({ data, update, onNext }) {
           <Button
             data-testid="form-step1-next"
             onClick={onNext}
-            className="w-full h-14 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all"
+            className="w-full h-14 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all"
           >
             Continuer
           </Button>

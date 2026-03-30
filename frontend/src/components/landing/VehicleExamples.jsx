@@ -15,7 +15,7 @@ export default function VehicleExamples() {
     <section data-testid="vehicle-examples-section" className="bg-white py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00] mb-3">Ventes recentes</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff4605] mb-3">Ventes recentes</p>
           <h2 className="font-['Mulish'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Ils nous ont fait confiance
           </h2>
@@ -35,7 +35,7 @@ export default function VehicleExamples() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#2B3A67]/90 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg">
-                      <BadgeEuro className="w-4 h-4 text-[#FF5C00]" />
+                      <BadgeEuro className="w-4 h-4 text-[#ff4605]" />
                       {v.prix} EUR
                     </div>
                   </div>

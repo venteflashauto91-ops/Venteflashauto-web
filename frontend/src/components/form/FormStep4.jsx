@@ -23,7 +23,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
               placeholder="Jean"
               value={c.prenom}
               onChange={(e) => set('prenom', e.target.value)}
-              className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+              className="h-12 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl"
             />
           </div>
           <div>
@@ -33,7 +33,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
               placeholder="Dupont"
               value={c.nom}
               onChange={(e) => set('nom', e.target.value)}
-              className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+              className="h-12 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl"
             />
           </div>
         </div>
@@ -46,7 +46,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
             placeholder="jean.dupont@email.com"
             value={c.email}
             onChange={(e) => set('email', e.target.value)}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl"
           />
         </div>
 
@@ -58,7 +58,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
             placeholder="06 12 34 56 78"
             value={c.telephone}
             onChange={(e) => set('telephone', e.target.value)}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl"
           />
         </div>
 
@@ -71,7 +71,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
             value={c.code_postal}
             onChange={(e) => set('code_postal', e.target.value)}
             maxLength={5}
-            className="h-12 border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
+            className="h-12 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-4 focus:ring-[#ff4605]/10 rounded-xl"
           />
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
         data-testid="form-step4-next"
         onClick={onNext}
         disabled={!canContinue}
-        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 mt-8 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continuer
       </Button>

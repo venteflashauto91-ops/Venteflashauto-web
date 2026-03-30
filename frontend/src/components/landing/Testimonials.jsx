@@ -36,7 +36,7 @@ export default function Testimonials() {
     <section id="temoignages" data-testid="testimonials-section" className="bg-white py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF5C00] mb-3">Temoignages</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff4605] mb-3">Temoignages</p>
           <h2 className="font-['Mulish'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Temoignages
           </h2>
@@ -52,7 +52,7 @@ export default function Testimonials() {
                 {t.avatar ? (
                   <img src={t.avatar} alt={t.name} className="w-12 h-12 rounded-full object-cover border-2 border-gray-100" />
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-[#FF5C00]/10 flex items-center justify-center text-[#FF5C00] font-bold text-sm">
+                  <div className="w-12 h-12 rounded-full bg-[#ff4605]/10 flex items-center justify-center text-[#ff4605] font-bold text-sm">
                     {t.name.charAt(0)}
                   </div>
                 )}
@@ -65,7 +65,7 @@ export default function Testimonials() {
                 {Array.from({ length: 5 }).map((_, s) => (
                   <Star
                     key={s}
-                    className={`w-4 h-4 ${s < t.rating ? 'text-[#FF5C00] fill-[#FF5C00]' : 'text-gray-300'}`}
+                    className={`w-4 h-4 ${s < t.rating ? 'text-[#ff4605] fill-[#ff4605]' : 'text-gray-300'}`}
                   />
                 ))}
               </div>
