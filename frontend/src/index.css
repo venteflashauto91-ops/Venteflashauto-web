@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,8 +7,8 @@
 :root {
   --navy: #2B3A67;
   --navy-light: #3B4D8A;
-  --orange: #E84D1C;
-  --orange-hover: #D4410F;
+  --orange: #FF5C00;
+  --orange-hover: #E65200;
   --green: #22C55E;
   --gray-bg: #F3F4F6;
   --gray-text: #4B5563;
@@ -24,7 +24,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Mulish', Arial, sans-serif;
 }
 
 @layer base {
@@ -35,7 +35,7 @@ h1, h2, h3, h4, h5, h6 {
     --card-foreground: 222 40% 28%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 40% 28%;
-    --primary: 14 83% 50%;
+    --primary: 21 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 222 40% 28%;
     --secondary-foreground: 0 0% 100%;
@@ -47,7 +47,7 @@ h1, h2, h3, h4, h5, h6 {
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 14 83% 50%;
+    --ring: 21 100% 50%;
     --chart-1: 21 100% 50%;
     --chart-2: 142 71% 45%;
     --chart-3: 216 39% 19%;
@@ -99,8 +99,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 77, 28, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(232, 77, 28, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 92, 0, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 92, 0, 0); }
 }
 
 .animate-fade-in-up {

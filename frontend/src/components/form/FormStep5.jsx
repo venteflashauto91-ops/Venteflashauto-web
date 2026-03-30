@@ -43,7 +43,7 @@ export default function FormStep5({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-5">
-      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Mulish'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Rendez-vous
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Choisissez votre centre et votre creneau.</p>
@@ -64,11 +64,11 @@ export default function FormStep5({ data, update, onNext, onBack }) {
                 onClick={() => update('rdv', { centre: c.id })}
                 className={`p-4 rounded-xl border-2 text-left transition-all ${
                   rdv.centre === c.id
-                    ? 'bg-[#E84D1C]/10 border-[#E84D1C]'
+                    ? 'bg-[#FF5C00]/10 border-[#FF5C00]'
                     : 'bg-white border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <p className={`font-bold text-sm ${rdv.centre === c.id ? 'text-[#E84D1C]' : 'text-[#2B3A67]'}`}>
+                <p className={`font-bold text-sm ${rdv.centre === c.id ? 'text-[#FF5C00]' : 'text-[#2B3A67]'}`}>
                   {c.name}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">{c.address}</p>
@@ -111,7 +111,7 @@ export default function FormStep5({ data, update, onNext, onBack }) {
                   onClick={() => handleSelectSlot(slot)}
                   className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
                     rdv.heure === slot
-                      ? 'bg-[#E84D1C]/10 border-[#E84D1C] text-[#E84D1C]'
+                      ? 'bg-[#FF5C00]/10 border-[#FF5C00] text-[#FF5C00]'
                       : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
@@ -127,7 +127,7 @@ export default function FormStep5({ data, update, onNext, onBack }) {
         data-testid="form-step5-next"
         onClick={onNext}
         disabled={!canContinue}
-        className="w-full h-14 mt-8 bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#E84D1C]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Voir le recapitulatif
       </Button>

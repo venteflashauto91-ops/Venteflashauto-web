@@ -1,10 +1,10 @@
 import { Star, Car, Award, CreditCard } from 'lucide-react';
 
 const stats = [
-  { icon: Car, value: '+500', label: 'vehicules vendus', color: '#E84D1C' },
+  { icon: Car, value: '+500', label: 'vehicules vendus', color: '#FF5C00' },
   { icon: Star, value: '4.8/5', label: 'avis clients', color: '#22C55E' },
   { icon: Award, value: '#1', label: 'service de reprise', color: '#2B3A67' },
-  { icon: CreditCard, value: '0\u20AC', label: 'frais de service', color: '#E84D1C' },
+  { icon: CreditCard, value: '0\u20AC', label: 'frais de service', color: '#FF5C00' },
 ];
 
 export default function SocialProof() {
@@ -18,7 +18,7 @@ export default function SocialProof() {
                 <Icon className="w-6 h-6" style={{ color }} />
               </div>
               <div>
-                <p className="font-['Poppins'] font-extrabold text-xl text-[#2B3A67]">{value}</p>
+                <p className="font-['Mulish'] font-extrabold text-xl text-[#2B3A67]">{value}</p>
                 <p className="text-sm text-gray-500">{label}</p>
               </div>
             </div>

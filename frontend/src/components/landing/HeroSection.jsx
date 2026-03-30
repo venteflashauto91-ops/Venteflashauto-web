@@ -33,13 +33,13 @@ export default function HeroSection() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-20 pb-48 text-center">
         <h1
           data-testid="hero-title"
-          className="font-['Poppins'] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-white mb-3 animate-fade-in-up"
+          className="font-['Mulish'] text-4xl sm:text-5xl lg:text-6xl font-[900] tracking-tight leading-tight text-white mb-3 animate-fade-in-up"
         >
-          Vendez votre <span className="text-[#E84D1C] italic">Voiture</span> en 24h
+          Vendez votre <span className="text-[#FF5C00]">Voiture</span> en 24h
         </h1>
         <p
           data-testid="hero-subtitle"
-          className="font-['Poppins'] text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#E84D1C] mb-12 animate-fade-in-up stagger-1"
+          className="font-['Mulish'] text-2xl sm:text-3xl lg:text-4xl font-[900] text-[#FF5C00] mb-12 animate-fade-in-up stagger-1"
         >
           Estimation en ligne
         </p>
@@ -63,7 +63,7 @@ export default function HeroSection() {
             <button
               data-testid="hero-estimate-btn"
               type="submit"
-              className="h-12 sm:h-14 w-14 bg-[#E84D1C] hover:bg-[#D4410F] rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0"
+              className="h-12 sm:h-14 w-14 bg-[#FF5C00] hover:bg-[#E65200] rounded-xl flex items-center justify-center transition-all active:scale-95 shrink-0"
             >
               <Search className="w-5 h-5 text-white" />
             </button>

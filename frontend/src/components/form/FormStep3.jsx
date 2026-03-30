@@ -50,7 +50,7 @@ export default function FormStep3({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-3">
-      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Mulish'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Etat du vehicule
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Indiquez l'etat general et ajoutez des photos.</p>
@@ -68,11 +68,11 @@ export default function FormStep3({ data, update, onNext, onBack }) {
                 onClick={() => update('vehicule', { etat: c.value })}
                 className={`p-4 rounded-xl border-2 text-left transition-all ${
                   v.etat === c.value
-                    ? 'bg-[#E84D1C]/10 border-[#E84D1C]'
+                    ? 'bg-[#FF5C00]/10 border-[#FF5C00]'
                     : 'bg-white border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <p className={`font-bold text-sm ${v.etat === c.value ? 'text-[#E84D1C]' : 'text-[#2B3A67]'}`}>
+                <p className={`font-bold text-sm ${v.etat === c.value ? 'text-[#FF5C00]' : 'text-[#2B3A67]'}`}>
                   {c.label}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">{c.desc}</p>
@@ -89,7 +89,7 @@ export default function FormStep3({ data, update, onNext, onBack }) {
             placeholder="Decrivez les defauts eventuels..."
             value={v.defauts}
             onChange={(e) => update('vehicule', { defauts: e.target.value })}
-            className="min-h-[100px] border-2 border-gray-200 focus:border-[#E84D1C] focus:ring-4 focus:ring-[#E84D1C]/10 rounded-xl"
+            className="min-h-[100px] border-2 border-gray-200 focus:border-[#FF5C00] focus:ring-4 focus:ring-[#FF5C00]/10 rounded-xl"
           />
         </div>
 
@@ -122,7 +122,7 @@ export default function FormStep3({ data, update, onNext, onBack }) {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-[#E84D1C] flex flex-col items-center justify-center gap-1 transition-colors"
+              className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-[#FF5C00] flex flex-col items-center justify-center gap-1 transition-colors"
             >
               {uploading ? (
                 <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
@@ -141,7 +141,7 @@ export default function FormStep3({ data, update, onNext, onBack }) {
         data-testid="form-step3-next"
         onClick={onNext}
         disabled={!canContinue}
-        className="w-full h-14 mt-8 bg-[#E84D1C] hover:bg-[#D4410F] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#E84D1C]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-14 mt-8 bg-[#FF5C00] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#FF5C00]/30 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Continuer
       </Button>

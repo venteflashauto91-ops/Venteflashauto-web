@@ -75,8 +75,8 @@ export default function FormPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="form-logo-link">
             <img src={LOGO_URL} alt="Venteflashauto" className="h-6 md:h-7 w-auto object-contain" />
-            <span className="font-['Poppins'] font-extrabold text-sm text-[#2B3A67]">
-              <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#E84D1C]">auto</span>
+            <span className="font-['Mulish'] font-extrabold text-sm text-[#2B3A67]">
+              <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#FF5C00]">auto</span>
             </span>
           </Link>
           {step < 6 && (
@@ -91,14 +91,14 @@ export default function FormPage() {
         {/* Progress bar */}
         {step < 6 && (
           <div className="mb-8" data-testid="form-progress">
-            <Progress value={progress} className="h-2 bg-gray-200 [&>div]:bg-[#E84D1C]" />
+            <Progress value={progress} className="h-2 bg-gray-200 [&>div]:bg-[#FF5C00]" />
             <div className="flex justify-between mt-3">
               {STEP_NAMES.slice(0, 5).map((name, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                       i + 1 < step ? 'bg-[#22C55E] text-white' :
-                      i + 1 === step ? 'bg-[#E84D1C] text-white' :
+                      i + 1 === step ? 'bg-[#FF5C00] text-white' :
                       'bg-gray-200 text-gray-500'
                     }`}
                   >
