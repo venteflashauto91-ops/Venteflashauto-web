@@ -16,7 +16,7 @@ export default function VehicleExamples() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E84D1C] mb-3">Ventes recentes</p>
-          <h2 className="font-['Outfit'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
+          <h2 className="font-['Poppins'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Ils nous ont fait confiance
           </h2>
         </div>
@@ -40,7 +40,7 @@ export default function VehicleExamples() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-['Outfit'] font-bold text-[#2B3A67]">{v.marque} {v.modele}</h3>
+                    <h3 className="font-['Poppins'] font-bold text-[#2B3A67]">{v.marque} {v.modele}</h3>
                     <p className="text-sm text-gray-500">Achetee en {v.annee}</p>
                   </div>
                 </div>

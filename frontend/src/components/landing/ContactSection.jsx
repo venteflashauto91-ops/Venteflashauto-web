@@ -16,7 +16,7 @@ export default function ContactSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 md:mb-16">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#E84D1C] mb-3">Nos centres</p>
-          <h2 className="font-['Outfit'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
+          <h2 className="font-['Poppins'] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#2B3A67]">
             Trouvez un centre pres de chez vous
           </h2>
         </div>
@@ -32,7 +32,7 @@ export default function ContactSection() {
                   <MapPin className="w-5 h-5 text-[#E84D1C]" />
                 </div>
                 <div>
-                  <h3 className="font-['Outfit'] font-bold text-[#2B3A67] text-lg">{c.name}</h3>
+                  <h3 className="font-['Poppins'] font-bold text-[#2B3A67] text-lg">{c.name}</h3>
                   <p className="text-sm text-gray-500 mt-1">{c.address}</p>
                 </div>
               </div>

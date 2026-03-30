@@ -18,7 +18,7 @@ export default function SocialProof() {
                 <Icon className="w-6 h-6" style={{ color }} />
               </div>
               <div>
-                <p className="font-['Outfit'] font-extrabold text-xl text-[#2B3A67]">{value}</p>
+                <p className="font-['Poppins'] font-extrabold text-xl text-[#2B3A67]">{value}</p>
                 <p className="text-sm text-gray-500">{label}</p>
               </div>
             </div>

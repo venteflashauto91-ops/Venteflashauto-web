@@ -74,8 +74,8 @@ export default function FormPage() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="form-logo-link">
-            <img src={LOGO_URL} alt="Venteflashauto" className="h-8 md:h-10 w-auto object-contain" />
-            <span className="font-['Outfit'] font-extrabold text-lg text-[#2B3A67]">
+            <img src={LOGO_URL} alt="Venteflashauto" className="h-6 md:h-7 w-auto object-contain" />
+            <span className="font-['Poppins'] font-extrabold text-sm text-[#2B3A67]">
               <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#E84D1C]">auto</span>
             </span>
           </Link>

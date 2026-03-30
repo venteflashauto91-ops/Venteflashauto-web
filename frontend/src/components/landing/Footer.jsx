@@ -10,7 +10,7 @@ export default function Footer() {
           {/* Logo */}
           <div>
             <Link to="/" className="inline-block mb-4">
-              <img src={LOGO_URL} alt="Venteflashauto" className="h-10 w-auto object-contain" />
+              <img src={LOGO_URL} alt="Venteflashauto" className="h-7 w-auto object-contain" />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
               Le service de reprise automobile rapide, fiable et transparent.

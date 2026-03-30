@@ -38,11 +38,11 @@ export default function Header() {
           <img
             src={LOGO_URL}
             alt="Venteflashauto"
-            className="h-10 md:h-12 w-auto object-contain"
+            className="h-7 md:h-8 w-auto object-contain"
           />
           {scrolled && (
-            <span className="font-['Outfit'] font-extrabold text-lg text-[#2B3A67]">
-              <span className="text-[#2B3A67]">V</span>enteflash<span className="text-[#E84D1C]">auto</span>
+            <span className="font-['Poppins'] font-extrabold text-base text-[#2B3A67]">
+              V<span className="text-[#2B3A67]">enteflash</span><span className="text-[#E84D1C]">auto</span>
             </span>
           )}
         </Link>

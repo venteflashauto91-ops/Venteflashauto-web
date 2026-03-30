@@ -42,7 +42,7 @@ export default function FormStep2({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-2">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Informations vehicule
       </h2>
       <p className="text-gray-500 mb-2 text-sm">

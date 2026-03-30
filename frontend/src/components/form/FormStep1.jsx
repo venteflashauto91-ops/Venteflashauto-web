@@ -45,7 +45,7 @@ export default function FormStep1({ data, update, onNext }) {
 
   return (
     <div data-testid="form-step-1">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Identifiez votre vehicule
       </h2>
       <p className="text-gray-500 mb-8">
@@ -111,7 +111,7 @@ export default function FormStep1({ data, update, onNext }) {
             {data.estimation && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-500 mb-1">Estimation indicative</p>
-                <p className="font-['Outfit'] text-3xl font-black text-[#E84D1C]">
+                <p className="font-['Poppins'] text-3xl font-black text-[#E84D1C]">
                   {Number(data.estimation).toLocaleString('fr-FR')} EUR
                 </p>
                 <p className="text-xs text-gray-400 mt-1">Prix final apres expertise en centre</p>

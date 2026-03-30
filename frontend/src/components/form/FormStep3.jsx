@@ -50,7 +50,7 @@ export default function FormStep3({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-3">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Etat du vehicule
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Indiquez l'etat general et ajoutez des photos.</p>

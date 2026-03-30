@@ -9,7 +9,7 @@ export default function FormStep4({ data, update, onNext, onBack }) {
 
   return (
     <div data-testid="form-step-4">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Vos coordonnees
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Pour recevoir votre offre et planifier le rendez-vous.</p>

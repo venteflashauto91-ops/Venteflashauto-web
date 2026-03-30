@@ -34,7 +34,7 @@ export default function FormStep6({ data }) {
         <div className="w-20 h-20 bg-[#22C55E]/10 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle2 className="w-10 h-10 text-[#22C55E]" />
         </div>
-        <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-3">
+        <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-3">
           Demande envoyee !
         </h2>
         <p className="text-gray-500 mb-2">
@@ -57,7 +57,7 @@ export default function FormStep6({ data }) {
 
   return (
     <div data-testid="form-step-6">
-      <h2 className="font-['Outfit'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
+      <h2 className="font-['Poppins'] text-2xl sm:text-3xl font-bold text-[#2B3A67] mb-2">
         Recapitulatif
       </h2>
       <p className="text-gray-500 mb-8 text-sm">Verifiez vos informations avant validation.</p>
@@ -80,7 +80,7 @@ export default function FormStep6({ data }) {
           {data.estimation && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <span className="text-gray-500 text-sm">Estimation:</span>
-              <span className="font-['Outfit'] text-xl font-black text-[#E84D1C] ml-2">
+              <span className="font-['Poppins'] text-xl font-black text-[#E84D1C] ml-2">
                 {Number(data.estimation).toLocaleString('fr-FR')} EUR
               </span>
             </div>
