@@ -12,6 +12,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
 from services import autobiz_service, pricing_service, hubspot_service, webhook_service
+from services import admin_service, settings_loader
 from services.utm_utils import extract_utm
 
 ROOT_DIR = Path(__file__).parent
@@ -93,6 +94,32 @@ class RangeCreate(BaseModel):
 class TrackingEvent(BaseModel):
     event: str
     properties: dict = {}
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+class AdminSettingsUpdate(BaseModel):
+    autobiz_base_url: Optional[str] = None
+    autobiz_market_value: Optional[str] = None
+    autobiz_username: Optional[str] = None
+    autobiz_password: Optional[str] = None
+    default_discount_percent: Optional[float] = None
+    enable_hubspot: Optional[bool] = None
+    hubspot_api_key: Optional[str] = None
+    enable_webhook: Optional[bool] = None
+    webhook_url: Optional[str] = None
+
+# ── Admin auth dependency ────────────────────────────────────────────
+
+async def require_admin(request: Request):
+    """Verify admin JWT token from Authorization header."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Token manquant")
+    token = auth[7:]
+    if not admin_service.verify_token(token):
+        raise HTTPException(401, "Token invalide ou expire")
+    return True
 
 # ── AUTOBIZ ROUTES (backend-only, secure) ───────────────────────────
 
@@ -316,6 +343,83 @@ async def track_event(event: TrackingEvent):
     })
     return {"tracked": True}
 
+# ── ADMIN ROUTES (protected by JWT) ──────────────────────────────────
+
+@api_router.post("/admin/login")
+async def admin_login(req: AdminLoginRequest):
+    """Login with admin password → get JWT token."""
+    if not admin_service.verify_admin_password(req.password):
+        raise HTTPException(401, "Mot de passe incorrect")
+    token = admin_service.create_token()
+    return {"token": token, "expires_in": admin_service.JWT_EXPIRY_HOURS * 3600}
+
+@api_router.get("/admin/settings")
+async def admin_get_settings(request: Request):
+    """Get all settings (secrets masked)."""
+    await require_admin(request)
+    settings = await admin_service.get_settings(db, mask_secrets=True)
+    return settings
+
+@api_router.post("/admin/settings")
+async def admin_update_settings(updates: AdminSettingsUpdate, request: Request):
+    """Update settings in DB. Secrets accepted in full, returned masked."""
+    await require_admin(request)
+    update_dict = {k: v for k, v in updates.dict().items() if v is not None}
+    result = await admin_service.update_settings(db, update_dict)
+    settings_loader.invalidate_cache()
+    return result
+
+@api_router.get("/admin/leads")
+async def admin_get_leads(request: Request, limit: int = 200, skip: int = 0):
+    """Get leads with pagination for admin dashboard."""
+    await require_admin(request)
+    total = await db.car_leads.count_documents({})
+    leads = await db.car_leads.find({}, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return {"leads": leads, "total": total, "limit": limit, "skip": skip}
+
+@api_router.get("/admin/ranges")
+async def admin_get_ranges(request: Request):
+    """Get all price ranges for admin."""
+    await require_admin(request)
+    ranges = await db.ranges.find({}, {"_id": 0}).sort("start_value", 1).to_list(100)
+    return {"ranges": ranges}
+
+@api_router.post("/admin/ranges")
+async def admin_create_range(r: RangeCreate, request: Request):
+    """Create a price range."""
+    await require_admin(request)
+    range_id = str(uuid.uuid4())
+    doc = {"id": range_id, "start_value": r.start_value, "end_value": r.end_value, "range_value": r.range_value}
+    await db.ranges.insert_one(doc)
+    return {"id": range_id, "created": True}
+
+@api_router.delete("/admin/ranges/{range_id}")
+async def admin_delete_range(range_id: str, request: Request):
+    """Delete a price range."""
+    await require_admin(request)
+    result = await db.ranges.delete_one({"id": range_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Range non trouvee")
+    return {"deleted": True}
+
+@api_router.get("/admin/stats")
+async def admin_stats(request: Request):
+    """Dashboard summary stats."""
+    await require_admin(request)
+    total_leads = await db.car_leads.count_documents({})
+    drivable_leads = await db.car_leads.count_documents({"is_drivable": True})
+    non_drivable_leads = await db.car_leads.count_documents({"is_drivable": False})
+    cfg = await admin_service.get_settings(db, mask_secrets=True)
+    autobiz_ok = bool(cfg.get("autobiz_username") and cfg.get("autobiz_base_url"))
+    return {
+        "total_leads": total_leads,
+        "drivable_leads": drivable_leads,
+        "non_drivable_leads": non_drivable_leads,
+        "autobiz_configured": autobiz_ok,
+        "hubspot_enabled": cfg.get("enable_hubspot", False),
+        "webhook_enabled": cfg.get("enable_webhook", False),
+    }
+
 # ── HEALTH ──────────────────────────────────────────────────────────
 
 @api_router.get("/")
@@ -336,6 +440,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
+    # Set DB references for services (dynamic settings)
+    autobiz_service.set_db(db)
+    hubspot_service.set_db(db)
+    webhook_service.set_db(db)
+
     # Init storage
     try:
         init_storage()

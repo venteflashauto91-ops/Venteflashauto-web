@@ -22,6 +22,13 @@ AUTOBIZ_MARKET_VALUE = os.environ.get("AUTOBIZ_MARKET_VALUE", "tradeIn")
 MAX_RETRIES = 5
 RETRY_DELAY = 2
 
+# Dynamic DB ref — set by server.py at startup
+_db = None
+
+def set_db(db):
+    global _db
+    _db = db
+
 # ── Mock data (used when credentials are not configured) ─────────────
 
 MOCK_VEHICLES = {
@@ -62,15 +69,29 @@ def is_configured() -> bool:
     return bool(AUTOBIZ_USERNAME and AUTOBIZ_PASSWORD and AUTOBIZ_BASE_URL)
 
 
+async def _get_dynamic_config() -> dict:
+    """Get Autobiz config from DB settings, fallback to env vars."""
+    if _db is not None:
+        from services.settings_loader import get_all_settings
+        s = await get_all_settings(_db)
+        username = s.get("autobiz_username") or AUTOBIZ_USERNAME
+        password = s.get("autobiz_password") or AUTOBIZ_PASSWORD
+        base_url = s.get("autobiz_base_url") or AUTOBIZ_BASE_URL
+        market_value = s.get("autobiz_market_value") or AUTOBIZ_MARKET_VALUE
+        return {"username": username, "password": password, "base_url": base_url, "market_value": market_value, "configured": bool(username and password and base_url)}
+    return {"username": AUTOBIZ_USERNAME, "password": AUTOBIZ_PASSWORD, "base_url": AUTOBIZ_BASE_URL, "market_value": AUTOBIZ_MARKET_VALUE, "configured": is_configured()}
+
+
 async def _get_auth_token() -> Optional[str]:
     """Authenticate with Autobiz and return a session token."""
-    if not is_configured():
+    cfg = await _get_dynamic_config()
+    if not cfg["configured"]:
         return None
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                f"{AUTOBIZ_BASE_URL}/auth/login",
-                json={"username": AUTOBIZ_USERNAME, "password": AUTOBIZ_PASSWORD},
+                f"{cfg['base_url']}/auth/login",
+                json={"username": cfg["username"], "password": cfg["password"]},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -81,54 +102,40 @@ async def _get_auth_token() -> Optional[str]:
 
 
 async def identify_vehicle(plate: str) -> dict:
-    """
-    Identify a vehicle by license plate via Autobiz API.
-    Falls back to mock data if Autobiz is not configured.
-    """
+    """Identify a vehicle by license plate via Autobiz API. Falls back to mock."""
     clean_plate = plate.upper().replace("-", "").replace(" ", "")
 
-    if is_configured():
+    cfg = await _get_dynamic_config()
+    if cfg["configured"]:
         try:
             token = await _get_auth_token()
             if not token:
                 raise Exception("Auth failed")
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(
-                    f"{AUTOBIZ_BASE_URL}/vehicle/identify",
+                    f"{cfg['base_url']}/vehicle/identify",
                     params={"plate": clean_plate},
                     headers={"Authorization": f"Bearer {token}"},
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                return {
-                    "found": True,
-                    "source": "autobiz",
-                    "vehicle": _normalize_autobiz_vehicle(data),
-                    "versions": _extract_versions(data),
-                    "raw": data,
-                }
+                return {"found": True, "source": "autobiz", "vehicle": _normalize_autobiz_vehicle(data), "versions": _extract_versions(data), "raw": data}
         except Exception as e:
             logger.error(f"Autobiz identify failed: {e}")
             return {"found": False, "source": "autobiz", "error": str(e)}
 
-    # Mock fallback
     return _mock_identify(clean_plate)
 
 
 async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
-    """
-    Get a price quotation from Autobiz.
-    Real API: GET /quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation
-    Retry: up to MAX_RETRIES times with RETRY_DELAY seconds between attempts.
-    Falls back to mock if not configured.
-    """
-    if is_configured():
+    """Get price quotation from Autobiz with retry. Falls back to mock."""
+    cfg = await _get_dynamic_config()
+    if cfg["configured"]:
         token = await _get_auth_token()
         if not token:
             logger.error("Autobiz auth failed for quotation")
             return {"source": "autobiz", "base_price": 0, "error": "Auth failed"}
 
-        # Extract version ID (format: "id: name" → take before colon)
         version_raw = vehicle_data.get("version", "")
         version_id = version_raw.split(":")[0].strip() if ":" in str(version_raw) else str(version_raw).strip()
         year = int(vehicle_data.get("year", 0))
@@ -136,64 +143,46 @@ async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
         if not version_id or not year:
             return {"source": "autobiz", "base_price": 0, "error": "Missing version_id or year"}
 
-        # Build Autobiz quotation URL (matches legacy PHP endpoint)
-        url = f"{AUTOBIZ_BASE_URL}/quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation"
+        url = f"{cfg['base_url']}/quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation"
+        market_value = cfg["market_value"]
 
-        # Retry logic (legacy: up to 5 attempts, 2s delay)
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    resp = await client.get(
-                        url,
-                        headers={"Authorization": f"Bearer {token}"},
-                    )
+                    resp = await client.get(url, headers={"Authorization": f"Bearer {token}"})
                     if resp.status_code == 200:
                         data = resp.json()
-                        base_price = _extract_price_from_quotation(data)
-                        return {
-                            "source": "autobiz",
-                            "base_price": base_price,
-                            "market_value_type": AUTOBIZ_MARKET_VALUE,
-                            "raw": data,
-                        }
+                        base_price = _extract_price_from_quotation(data, market_value)
+                        return {"source": "autobiz", "base_price": base_price, "market_value_type": market_value, "raw": data}
                     else:
                         logger.warning(f"Autobiz quotation attempt {attempt}/{MAX_RETRIES} returned {resp.status_code}")
             except Exception as e:
                 logger.warning(f"Autobiz quotation attempt {attempt}/{MAX_RETRIES} failed: {e}")
-
             if attempt < MAX_RETRIES:
                 await asyncio.sleep(RETRY_DELAY)
 
         return {"source": "autobiz", "base_price": 0, "error": "Max retries exceeded"}
 
-    # Mock fallback
     return _mock_quotation(vehicle_data, mileage)
 
 
-def _extract_price_from_quotation(data: dict) -> float:
-    """
-    Extract base_price from Autobiz quotation response.
-    Legacy logic: data['_quotation'][AUTOBIZ_MARKET_VALUE]
-    """
+def _extract_price_from_quotation(data: dict, market_value: str = None) -> float:
+    """Extract base_price from Autobiz quotation response."""
+    mv = market_value or AUTOBIZ_MARKET_VALUE
     if not isinstance(data, dict):
         return 0.0
-
-    # Primary: legacy path _quotation[market_value_key]
     quotation = data.get("_quotation", {})
     if isinstance(quotation, dict):
-        val = quotation.get(AUTOBIZ_MARKET_VALUE)
+        val = quotation.get(mv)
         if isinstance(val, (int, float)):
             return float(val)
-
-    # Fallback: try direct keys
-    for key in [AUTOBIZ_MARKET_VALUE, "price", "tradeIn", "b2cMarketValue", "value", "estimation"]:
+    for key in [mv, "price", "tradeIn", "b2cMarketValue", "value", "estimation"]:
         if key in data:
             val = data[key]
             if isinstance(val, (int, float)):
                 return float(val)
             if isinstance(val, dict) and "value" in val:
                 return float(val["value"])
-
     return 0.0
 
 

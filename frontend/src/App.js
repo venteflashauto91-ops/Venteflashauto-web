@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import CarSearchPage from "./pages/CarSearchPage";
 import ResultPage from "./pages/ResultPage";
 import CarEstimationPage2 from "./pages/CarEstimationPage2";
+import AdminPage from "./pages/AdminPage";
 function App() {
   return (
     <BrowserRouter>
@@ -13,6 +14,7 @@ function App() {
         <Route path="/car-search" element={<CarSearchPage />} />
         <Route path="/result-page" element={<ResultPage />} />
         <Route path="/car-estimation-page-2" element={<CarEstimationPage2 />} />
+        <Route path="/admin" element={<AdminPage />} />
         {/* Legacy route redirect */}
         <Route path="/estimation" element={<CarSearchPage />} />
       </Routes>

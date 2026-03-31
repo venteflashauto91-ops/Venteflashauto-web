@@ -18,6 +18,20 @@ ENABLE_HUBSPOT = os.environ.get("ENABLE_HUBSPOT", "false").lower() == "true"
 HUBSPOT_API_KEY = os.environ.get("HUBSPOT_API_KEY", "")
 HUBSPOT_API_URL = "https://api.hubapi.com/crm/v3/objects"
 
+_db = None
+
+def set_db(db):
+    global _db
+    _db = db
+
+
+async def _get_config():
+    if _db is not None:
+        from services.settings_loader import get_all_settings
+        s = await get_all_settings(_db)
+        return s.get("enable_hubspot", ENABLE_HUBSPOT), s.get("hubspot_api_key") or HUBSPOT_API_KEY
+    return ENABLE_HUBSPOT, HUBSPOT_API_KEY
+
 
 def _headers():
     return {
@@ -26,14 +40,25 @@ def _headers():
     }
 
 
+def _headers_with_key(api_key: str):
+    return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
+
 async def create_contact_and_deal(lead_data: dict) -> dict:
     """
     Create HubSpot contact + deal from lead data (matches legacy PHP plugin).
     Returns: { sent, contact_id, deal_id, errors }
     """
     if not ENABLE_HUBSPOT or not HUBSPOT_API_KEY:
-        logger.info("HubSpot disabled or not configured, skipping")
-        return {"sent": False, "reason": "disabled"}
+        # Check dynamic config from DB
+        enabled, api_key = await _get_config()
+        if not enabled or not api_key:
+            logger.info("HubSpot disabled or not configured, skipping")
+            return {"sent": False, "reason": "disabled"}
+    else:
+        _, api_key = await _get_config()
+        if not api_key:
+            api_key = HUBSPOT_API_KEY
 
     result = {"sent": False, "contact_id": None, "deal_id": None, "errors": []}
 
@@ -92,7 +117,7 @@ async def create_contact_and_deal(lead_data: dict) -> dict:
             resp = await client.post(
                 f"{HUBSPOT_API_URL}/deals",
                 json=deal_payload,
-                headers=_headers(),
+                headers=_headers_with_key(api_key),
             )
 
             if resp.status_code == 201:
@@ -114,6 +139,7 @@ async def create_contact_and_deal(lead_data: dict) -> dict:
 
 async def _create_or_find_contact(client: httpx.AsyncClient, client_info: dict, result: dict) -> str:
     """Create a HubSpot contact or find existing one. Returns contact_id or None."""
+    _, api_key = await _get_config()
     contact_payload = {
         "properties": {
             "email": client_info.get("email", ""),
@@ -125,7 +151,7 @@ async def _create_or_find_contact(client: httpx.AsyncClient, client_info: dict, 
         resp = await client.post(
             f"{HUBSPOT_API_URL}/contacts",
             json=contact_payload,
-            headers=_headers(),
+            headers=_headers_with_key(api_key),
         )
 
         if resp.status_code == 201:

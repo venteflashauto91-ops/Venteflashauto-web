@@ -14,13 +14,28 @@ logger = logging.getLogger(__name__)
 ENABLE_WEBHOOK = os.environ.get("ENABLE_WEBHOOK", "false").lower() == "true"
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 
+_db = None
+
+def set_db(db):
+    global _db
+    _db = db
+
+
+async def _get_config():
+    if _db is not None:
+        from services.settings_loader import get_all_settings
+        s = await get_all_settings(_db)
+        return s.get("enable_webhook", ENABLE_WEBHOOK), s.get("webhook_url") or WEBHOOK_URL
+    return ENABLE_WEBHOOK, WEBHOOK_URL
+
 
 async def send_lead(lead_doc: dict) -> dict:
     """
     Send lead data to configured webhook URL.
     Payload matches legacy PHP plugin structure with all tracking fields.
     """
-    if not ENABLE_WEBHOOK or not WEBHOOK_URL:
+    enabled, webhook_url = await _get_config()
+    if not enabled or not webhook_url:
         logger.info("Webhook disabled or not configured, skipping")
         return {"sent": False, "reason": "disabled"}
 
@@ -90,7 +105,7 @@ async def send_lead(lead_doc: dict) -> dict:
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                WEBHOOK_URL,
+                webhook_url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
             )
