@@ -1,55 +1,61 @@
 # VenteFlash Auto - PRD
 
-## Problem Statement
-Site de reprise de vehicules pour particuliers (style venteflashauto.fr) avec estimation en ligne, formulaire multi-etapes, capture de leads, prise de RDV, et envoi automatique vers une API VO.
-
 ## Architecture
-- **Frontend**: React + Tailwind + Shadcn UI (port 3000)
-- **Backend**: FastAPI + MongoDB + Object Storage (port 8001)
-- **Database**: MongoDB (leads, partial_leads, files, tracking_events)
-- **Storage**: Emergent Object Storage (photos vehicules)
+- **Frontend**: React + Tailwind + Shadcn UI
+- **Backend**: FastAPI + MongoDB + Object Storage
+- **Services**: autobiz_service, pricing_service, hubspot_service, webhook_service
+- **Database**: car_leads, ranges, settings, files, tracking_events
 
-## User Personas
-1. **Vendeur particulier** - Veut vendre rapidement son vehicule avec estimation transparente
-2. **Admin plateforme** - Consulte les leads et gere les RDV (futur)
+## Business Flow
+1. User enters plate on homepage
+2. Redirect to /car-search?car_info=PLATE (preserves UTM)
+3. Backend identifies vehicle via Autobiz (mock until credentials configured)
+4. Vehicle data prefilled on form
+5. User completes mileage, condition, details
+6. Backend calculates price via ranges
+7. User fills contact form
+8. Lead saved to car_leads
+9. Redirect to /result-page
+10. Optional: HubSpot + webhook integrations (stubs ready)
 
-## Core Requirements
-- [x] Landing page conversion-optimized avec Hero, Social Proof, How It Works, Testimonials, Contact
-- [x] Formulaire multi-etapes (6 steps): Identification -> Infos -> Etat/Photos -> Coordonnees -> RDV -> Confirmation
-- [x] API mock identification vehicule (remplacable par Autobiz)
-- [x] Estimation de prix indicative
-- [x] Upload photos vehicule (Object Storage cloud)
-- [x] Prise de RDV avec calendrier + creneaux
-- [x] Stockage leads MongoDB
-- [x] Tracking evenements (page_view, estimation_started, lead_submitted, etc.)
-- [x] Sauvegarde leads partiels (abandon)
-- [x] Sticky CTA button
-- [x] Mobile-first responsive design
+## Pages
+- / - Landing page (hero, social proof, how it works, testimonials, centers, footer)
+- /car-search - Vehicle form + estimation + contact
+- /result-page - Confirmation + estimation display
+- /car-estimation-page-2 - Non-drivable vehicles flow
 
-## What's Been Implemented (2026-03-29)
-- Full landing page with all sections
-- Complete 6-step form flow (identification through confirmation)
-- Backend API: vehicle/identify, vehicle/estimate, leads CRUD, upload, appointments, centers, tracking
-- Object Storage integration for vehicle photos
-- Mock vehicle identification with 8+ test plates
-- Lead storage in MongoDB with full data
-- Partial lead saving for abandonment tracking
-- Responsive design (mobile + desktop)
+## API Routes
+- POST /api/autobiz/identify - Vehicle identification (backend-only)
+- POST /api/autobiz/quote - Price quotation + range pricing
+- POST /api/leads/save - Save complete lead
+- GET /api/leads - List leads
+- GET /api/ranges - List price ranges
+- POST /api/ranges - Create range
+- DELETE /api/ranges/{id} - Delete range
+- GET /api/settings - Configuration status
 
-## Prioritized Backlog
-### P0 (Critical - Next)
-- [ ] Brancher API Autobiz reelle pour identification vehicule
-- [ ] Brancher API plateforme VO pour envoi leads
+## Env Variables
+- AUTOBIZ_USERNAME, AUTOBIZ_PASSWORD, AUTOBIZ_BASE_URL
+- AUTOBIZ_MARKET_VALUE=tradeIn
+- DEFAULT_DISCOUNT_PERCENT=0
+- HUBSPOT_API_KEY, ENABLE_HUBSPOT=false
+- WEBHOOK_URL, ENABLE_WEBHOOK=false
 
-### P1 (Important)
-- [ ] Espace client (login, suivi vente)
-- [ ] Dashboard admin pour consulter les leads
-- [ ] Notifications email (confirmation RDV, suivi)
-- [ ] Google Analytics integration
+## What's Been Implemented (2026-03-31)
+- [x] Secure backend-only Autobiz integration (mock active)
+- [x] Range-based pricing with 6 default brackets
+- [x] Full lead capture flow (plate → identify → quote → contact → save)
+- [x] Non-drivable vehicles alternative flow
+- [x] UTM parameter preservation
+- [x] Object Storage for photos
+- [x] HubSpot + Webhook stubs
+- [x] Landing page with all sections
 
-### P2 (Nice to have)
-- [ ] A/B testing framework
-- [ ] Estimation IA avancee
-- [ ] Geolocalisation centres
-- [ ] SMS notifications
-- [ ] SEO optimization (meta tags, sitemap)
+## Backlog
+### P0
+- [ ] Configure real Autobiz credentials
+- [ ] Connect real HubSpot API key
+### P1
+- [ ] Admin dashboard for leads/ranges management
+- [ ] Email notifications
+- [ ] Real webhook integration
