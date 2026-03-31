@@ -4,8 +4,8 @@ import { Loader2, CheckCircle2, Camera, X, ArrowRight, Car, Fuel, Calendar, Gaug
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { identifyVehicle, getQuotation, uploadPhoto, trackEvent } from '@/lib/api';
-import { getMergedUtm, storeUtm, buildUrlWithUtm } from '@/lib/utm';
+import { identifyVehicle, getQuotation, uploadPhoto, saveLead, trackEvent } from '@/lib/api';
+import { getMergedUtm, storeUtm } from '@/lib/utm';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
@@ -58,6 +58,9 @@ export default function CarSearchPage() {
   // ── Pricing ──
   const [pricing, setPricing] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+
+  // ── Submission ──
+  const [submitting, setSubmitting] = useState(false);
 
   // ── UTM ──
   useEffect(() => { storeUtm(); }, []);
@@ -155,27 +158,81 @@ export default function CarSearchPage() {
 
   const handleSubmit = async () => {
     if (!client.firstname || !client.lastname || !client.email || !client.phone) return;
-    setLoading(true);
+    setSubmitting(true);
+    setError('');
     try {
-      // Get quote if not yet done
+      // 1. Get quote if not yet done (drivable=yes only)
       let finalPricing = pricing;
       if (!finalPricing && drivable === 'yes') {
-        const result = await getQuotation({ ...values, plate }, parseInt(values.km) || 0);
-        finalPricing = result.pricing;
+        const quoteResult = await getQuotation({ ...values, plate }, parseInt(values.km) || 0);
+        finalPricing = quoteResult.pricing;
+        setPricing(finalPricing);
       }
-      trackEvent('lead_submitted', { plate, make: values.make });
-      navigate(buildUrlWithUtm('/result-page'), {
-        state: {
-          plate, vehicle: values, mileage: parseInt(values.km) || 0,
-          isDrivable: drivable === 'yes', condition: drivable === 'no' ? 'non_roulant' : 'bon',
-          defects: reasonText, firstOwner: boolAnswers.firstHand === 'yes',
-          serviceBook: boolAnswers.maintenanceBook === 'yes', serviceInvoices: boolAnswers.maintenanceInvoices === 'yes',
-          imported: boolAnswers.imported === 'yes', client, pricing: finalPricing || { final_price: 0 },
-          photos, utm: getMergedUtm(), reason, version: values.version,
-        },
+
+      const finalPrice = finalPricing?.final_price || 0;
+
+      // 2. Save lead BEFORE redirect — abort if fails
+      const saveResult = await saveLead({
+        plate,
+        vehicle: values,
+        mileage: parseInt(values.km) || 0,
+        is_drivable: drivable === 'yes',
+        condition: drivable === 'no' ? 'non_roulant' : 'bon',
+        defects: reasonText,
+        first_owner: boolAnswers.firstHand === 'yes',
+        service_book: boolAnswers.maintenanceBook === 'yes',
+        service_invoices: boolAnswers.maintenanceInvoices === 'yes',
+        imported: boolAnswers.imported === 'yes',
+        client,
+        pricing: finalPricing || {},
+        photos,
+        utm: getMergedUtm(),
+        source: 'website',
       });
-    } catch { setError('Erreur soumission'); }
-    finally { setLoading(false); }
+
+      if (!saveResult?.id) {
+        throw new Error('Sauvegarde echouee');
+      }
+
+      // 3. GTM dataLayer event (only after successful save)
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'custom_price_simulation',
+        value: finalPrice,
+        currency: 'EUR',
+        item_name: `${values.make} ${values.model}`,
+        transaction_id: `TX_${Date.now()}`,
+      });
+
+      trackEvent('lead_submitted', { plate, make: values.make, inserted_id: saveResult.id });
+
+      // 4. Build redirect URL with query params (legacy-compatible)
+      const versionId = values.version ? values.version.split(':')[0].trim() : '';
+      const resultParams = new URLSearchParams();
+      resultParams.set('reg', String(values.year || ''));
+      resultParams.set('km', String(values.km || ''));
+      resultParams.set('version', versionId);
+      resultParams.set('drivable', drivable);
+      resultParams.set('inserted_id', saveResult.id);
+      resultParams.set('car', `${values.make} ${values.model}`);
+      resultParams.set('car_number', plate);
+      resultParams.set('price', String(finalPrice));
+
+      // Preserve UTM params
+      const utm = getMergedUtm();
+      Object.entries(utm).forEach(([k, v]) => {
+        if (v) resultParams.set(k, v);
+      });
+
+      // 5. Redirect: drivable=no → car-estimation-page-2, else → result-page
+      const targetPath = drivable === 'no' ? '/car-estimation-page-2' : '/result-page';
+      window.location.href = `${window.location.origin}${targetPath}?${resultParams.toString()}`;
+
+    } catch (err) {
+      setError(err.message || 'Erreur lors de la sauvegarde. Veuillez reessayer.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // ── Manual plate entry ──
@@ -454,12 +511,12 @@ export default function CarSearchPage() {
             <Button
               data-testid="btn-submit-lead"
               onClick={handleSubmit}
-              disabled={!client.firstname || !client.lastname || !client.email || !client.phone || loading}
+              disabled={!client.firstname || !client.lastname || !client.email || !client.phone || submitting}
               className="w-full h-14 mt-6 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              Valider ma demande
-              <ArrowRight className="w-5 h-5 ml-2" />
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+              {submitting ? 'Envoi en cours...' : 'Valider ma demande'}
+              {!submitting && <ArrowRight className="w-5 h-5 ml-2" />}
             </Button>
 
             <div className="text-center mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">

@@ -1,66 +1,30 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams, useLocation, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, Car, Phone, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { saveLead } from '@/lib/api';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
 export default function ResultPage() {
-  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(true);
 
-  const state = location.state || {};
-  const plate = state.plate || searchParams.get('plate') || '';
-  const vehicle = state.vehicle || {};
-  const pricing = state.pricing || {};
-  const client = state.client || {};
-  const finalPrice = pricing.final_price || parseFloat(searchParams.get('price')) || 0;
-  const firstname = client.firstname || searchParams.get('firstname') || '';
+  const car = searchParams.get('car') || '';
+  const carNumber = searchParams.get('car_number') || '';
+  const price = parseFloat(searchParams.get('price')) || 0;
+  const reg = searchParams.get('reg') || '';
+  const km = searchParams.get('km') || '';
+  const drivable = searchParams.get('drivable') || 'yes';
+  const insertedId = searchParams.get('inserted_id') || '';
 
-  // Save lead on mount
-  useEffect(() => {
-    if (!state.vehicle) {
-      setSaving(false);
-      return;
-    }
-    const doSave = async () => {
-      try {
-        await saveLead({
-          plate: state.plate,
-          vehicle: state.vehicle,
-          mileage: state.mileage,
-          is_drivable: state.isDrivable,
-          condition: state.condition,
-          defects: state.defects,
-          first_owner: state.firstOwner,
-          service_book: state.serviceBook,
-          service_invoices: state.serviceInvoices,
-          imported: state.imported,
-          client: state.client,
-          pricing: state.pricing,
-          photos: state.photos,
-          utm: state.utm || {},
-          source: 'website',
-        });
-        setSaved(true);
-      } catch (err) {
-        console.error('Save lead error:', err);
-      } finally {
-        setSaving(false);
-      }
-    };
-    doSave();
-  }, []);
+  // Extract firstname from car data is not in URL — use a generic greeting
+  // The legacy script didn't pass firstname in URL params either
+  const firstname = searchParams.get('firstname') || '';
 
   return (
     <div data-testid="result-page" className="min-h-screen bg-[#F3F4F6]">
       {/* Header */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
-          <Link to="/">
+          <Link to="/" data-testid="result-logo">
             <img src={LOGO_URL} alt="Venteflashauto" className="h-6 md:h-7 w-auto" />
           </Link>
           <span className="font-['Mulish'] font-extrabold text-sm text-[#2B3A67]">
@@ -75,26 +39,30 @@ export default function ResultPage() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-green-500" />
           </div>
-          <h1 className="font-['Mulish'] text-3xl sm:text-4xl font-[900] text-[#2B3A67] mb-3">
-            {firstname ? `Merci ${firstname} !` : 'Merci !'}
+          <h1 data-testid="result-title" className="font-['Mulish'] text-3xl sm:text-4xl font-[900] text-[#2B3A67] mb-3">
+            Merci !
           </h1>
           <p className="text-gray-500 text-lg">Votre demande a ete enregistree avec succes.</p>
+          {insertedId && (
+            <p className="text-gray-400 text-xs mt-2" data-testid="result-ref">Ref: {insertedId}</p>
+          )}
         </div>
 
-        {/* Estimation card */}
-        {finalPrice > 0 && (
+        {/* Estimation card (only if price > 0, i.e. drivable) */}
+        {price > 0 && (
           <div className="bg-white rounded-xl border border-gray-100 shadow-lg p-6 md:p-8 text-center mb-6 animate-fade-in-up stagger-1" data-testid="result-estimation">
             <div className="flex items-center justify-center gap-2 mb-4">
               <Car className="w-5 h-5 text-[#ff4605]" />
               <span className="text-sm font-semibold text-gray-500">
-                {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ''}
+                {car} {reg ? `(${reg})` : ''}
               </span>
             </div>
             <p className="text-xs text-gray-400 mb-2">Estimation pour votre vehicule</p>
-            <p className="font-['Mulish'] text-5xl sm:text-6xl font-[900] text-[#ff4605] mb-2">
-              {Number(finalPrice).toLocaleString('fr-FR')} EUR
+            <p data-testid="result-price" className="font-['Mulish'] text-5xl sm:text-6xl font-[900] text-[#ff4605] mb-2">
+              {Number(price).toLocaleString('fr-FR')} EUR
             </p>
-            <p className="text-sm text-gray-400">Immatriculation : {plate}</p>
+            {carNumber && <p className="text-sm text-gray-400">Immatriculation : {carNumber}</p>}
+            {km && <p className="text-sm text-gray-400">{Number(km).toLocaleString('fr-FR')} km</p>}
           </div>
         )}
 
@@ -125,7 +93,7 @@ export default function ResultPage() {
             01 42 00 00 00
           </a>
           <Link to="/">
-            <Button className="bg-[#ff4605] hover:bg-[#E65200] text-white font-bold rounded-xl px-6">
+            <Button className="bg-[#ff4605] hover:bg-[#E65200] text-white font-bold rounded-xl px-6" data-testid="result-back-home">
               Retour a l'accueil
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
