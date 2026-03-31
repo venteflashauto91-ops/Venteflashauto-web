@@ -8,8 +8,11 @@ import uuid
 import requests
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
-from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone
+
+from services import autobiz_service, pricing_service, hubspot_service, webhook_service
+from services.utm_utils import extract_utm
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -28,7 +31,6 @@ storage_key = None
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-# Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -45,150 +47,185 @@ def init_storage():
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
     key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data, timeout=120
-    )
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
 def get_object(path: str):
     key = init_storage()
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key}, timeout=60
-    )
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
     resp.raise_for_status()
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 # ── Pydantic Models ─────────────────────────────────────────────────
 
-class VehicleIdentifyRequest(BaseModel):
-    immatriculation: str
+class IdentifyRequest(BaseModel):
+    plate: str
 
-class VehicleIdentifyResponse(BaseModel):
-    found: bool
-    marque: str = ""
-    modele: str = ""
-    version: str = ""
-    annee: str = ""
-    carburant: str = ""
+class QuoteRequest(BaseModel):
+    vehicle: Dict[str, Any]
+    mileage: int
 
-class VehicleInfo(BaseModel):
-    immatriculation: str = ""
-    marque: str = ""
-    modele: str = ""
-    version: str = ""
-    kilometrage: str = ""
-    etat: str = ""
-    roulant: Optional[bool] = None
-    importe: Optional[bool] = None
-    premiere_main: Optional[bool] = None
-    carnet_entretien: Optional[bool] = None
-    factures_entretien: Optional[bool] = None
-    defauts: str = ""
-    annee: str = ""
-    carburant: str = ""
-
-class ClientInfo(BaseModel):
-    nom: str = ""
-    prenom: str = ""
-    email: str = ""
-    telephone: str = ""
-    code_postal: str = ""
-
-class RdvInfo(BaseModel):
-    date: str = ""
-    heure: str = ""
-    centre: str = ""
-
-class LeadCreate(BaseModel):
-    vehicule: VehicleInfo
-    client: ClientInfo
-    rdv: RdvInfo
+class LeadSaveRequest(BaseModel):
+    plate: str = ""
+    vehicle: Dict[str, Any] = {}
+    mileage: int = 0
+    is_drivable: bool = True
+    condition: str = ""
+    defects: str = ""
+    first_owner: bool = False
+    service_book: bool = False
+    service_invoices: bool = False
+    imported: bool = False
+    client: Dict[str, Any] = {}
+    pricing: Dict[str, Any] = {}
     photos: List[str] = []
-    estimation: Optional[float] = None
+    utm: Dict[str, str] = {}
+    source: str = "website"
 
-class LeadResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    vehicule: VehicleInfo
-    client: ClientInfo
-    rdv: RdvInfo
-    photos: List[str] = []
-    estimation: Optional[float] = None
-    status: str = "new"
-    created_at: str = ""
-
-class PartialLeadCreate(BaseModel):
-    step: int
-    data: dict
+class RangeCreate(BaseModel):
+    start_value: float
+    end_value: float
+    range_value: float
 
 class TrackingEvent(BaseModel):
     event: str
     properties: dict = {}
 
-# ── Mock vehicle database (replace with Autobiz API) ────────────────
+# ── AUTOBIZ ROUTES (backend-only, secure) ───────────────────────────
 
-MOCK_VEHICLES = {
-    "AA123BB": {"marque": "Peugeot", "modele": "208", "version": "1.2 PureTech 100 Active", "annee": "2020", "carburant": "Essence"},
-    "CC456DD": {"marque": "Renault", "modele": "Clio V", "version": "1.0 TCe 100 Intens", "annee": "2021", "carburant": "Essence"},
-    "EE789FF": {"marque": "Citroen", "modele": "C3", "version": "1.2 PureTech 83 Feel", "annee": "2019", "carburant": "Essence"},
-    "GG012HH": {"marque": "Volkswagen", "modele": "Golf 8", "version": "1.5 TSI 150 Style", "annee": "2022", "carburant": "Essence"},
-    "KK345LL": {"marque": "BMW", "modele": "Serie 3", "version": "320d xDrive M Sport", "annee": "2021", "carburant": "Diesel"},
-    "MM678NN": {"marque": "Mercedes", "modele": "Classe A", "version": "A 200 AMG Line", "annee": "2020", "carburant": "Essence"},
-    "PP901QQ": {"marque": "Audi", "modele": "A3", "version": "35 TFSI S Line", "annee": "2022", "carburant": "Essence"},
-    "AB123CD": {"marque": "Toyota", "modele": "Yaris", "version": "1.5 Hybride Dynamic", "annee": "2023", "carburant": "Hybride"},
-}
+@api_router.post("/autobiz/identify")
+async def autobiz_identify(req: IdentifyRequest):
+    """Identify vehicle via Autobiz. All credentials stay server-side."""
+    result = await autobiz_service.identify_vehicle(req.plate)
+    if not result.get("found"):
+        raise HTTPException(404, detail=result.get("error", "Vehicule non trouve"))
+    # Strip raw Autobiz response from client output
+    result.pop("raw", None)
+    return result
 
-def identify_vehicle_mock(immatriculation: str) -> dict:
-    """Mock for Autobiz API. Replace this function with real API call."""
-    clean = immatriculation.upper().replace("-", "").replace(" ", "")
-    if clean in MOCK_VEHICLES:
-        return {"found": True, **MOCK_VEHICLES[clean]}
-    # Generate a plausible response for any plate format
-    import random
-    brands = [
-        {"marque": "Peugeot", "modele": "308", "version": "1.5 BlueHDi 130 Allure"},
-        {"marque": "Renault", "modele": "Megane", "version": "1.3 TCe 140 Techno"},
-        {"marque": "Citroen", "modele": "C4", "version": "1.2 PureTech 130 Shine"},
-        {"marque": "Dacia", "modele": "Sandero", "version": "1.0 TCe 90 Stepway"},
-        {"marque": "Fiat", "modele": "500", "version": "1.0 Hybrid 70 Lounge"},
-    ]
-    chosen = random.choice(brands)
-    year = str(random.randint(2017, 2024))
-    fuel = random.choice(["Essence", "Diesel", "Hybride"])
-    return {"found": True, **chosen, "annee": year, "carburant": fuel}
-
-def estimate_vehicle_price(vehicle_data: dict) -> float:
-    """Generate a plausible estimation based on vehicle data."""
-    import random
-    base_prices = {
-        "Peugeot": 10000, "Renault": 9500, "Citroen": 9000, "Volkswagen": 14000,
-        "BMW": 22000, "Mercedes": 23000, "Audi": 20000, "Toyota": 13000,
-        "Dacia": 8000, "Fiat": 7000,
+@api_router.post("/autobiz/quote")
+async def autobiz_quote(req: QuoteRequest):
+    """Get price quotation from Autobiz + apply range pricing."""
+    quotation = await autobiz_service.get_quotation(req.vehicle, req.mileage)
+    base_price = quotation.get("base_price", 0)
+    pricing = await pricing_service.calculate_final_price(db, base_price)
+    # Strip raw
+    quotation.pop("raw", None)
+    return {
+        "quotation": quotation,
+        "pricing": pricing,
+        "market_value_type": autobiz_service.AUTOBIZ_MARKET_VALUE,
     }
-    base = base_prices.get(vehicle_data.get("marque", ""), 11000)
-    year = int(vehicle_data.get("annee", "2020"))
-    age_factor = max(0.4, 1 - (2026 - year) * 0.08)
-    return round(base * age_factor + random.randint(-500, 1500), -2)
 
-# ── API Routes ───────────────────────────────────────────────────────
+# ── LEADS ROUTES ────────────────────────────────────────────────────
 
-@api_router.get("/")
-async def root():
-    return {"message": "VenteFlash Auto API"}
+@api_router.post("/leads/save")
+async def save_lead(lead: LeadSaveRequest):
+    """Save a complete lead to database, optionally push to HubSpot/webhook."""
+    lead_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
 
-@api_router.post("/vehicle/identify", response_model=VehicleIdentifyResponse)
-async def identify_vehicle(req: VehicleIdentifyRequest):
-    result = identify_vehicle_mock(req.immatriculation)
-    return VehicleIdentifyResponse(**result)
+    doc = {
+        "id": lead_id,
+        "plate": lead.plate,
+        "vehicle": lead.vehicle,
+        "mileage": lead.mileage,
+        "is_drivable": lead.is_drivable,
+        "condition": lead.condition,
+        "defects": lead.defects,
+        "first_owner": lead.first_owner,
+        "service_book": lead.service_book,
+        "service_invoices": lead.service_invoices,
+        "imported": lead.imported,
+        "client": lead.client,
+        "pricing": lead.pricing,
+        "photos": lead.photos,
+        "utm": lead.utm,
+        "source": lead.source,
+        "status": "new",
+        "created_at": now,
+        "hubspot": None,
+        "webhook": None,
+    }
 
-@api_router.post("/vehicle/estimate")
-async def estimate_vehicle(req: dict):
-    price = estimate_vehicle_price(req)
-    return {"estimation": price}
+    # Save to DB
+    await db.car_leads.insert_one(doc)
+
+    # Optional: HubSpot
+    hubspot_result = await hubspot_service.create_contact({
+        "client": lead.client,
+        "vehicle": lead.vehicle,
+        "final_price": lead.pricing.get("final_price", 0),
+    })
+    doc["hubspot"] = hubspot_result
+
+    # Optional: Webhook
+    webhook_data = {k: v for k, v in doc.items() if k != "_id"}
+    webhook_result = await webhook_service.send_lead(webhook_data)
+    doc["webhook"] = webhook_result
+
+    # Update integrations status
+    await db.car_leads.update_one(
+        {"id": lead_id},
+        {"$set": {"hubspot": hubspot_result, "webhook": webhook_result}},
+    )
+
+    return {
+        "id": lead_id,
+        "status": "saved",
+        "hubspot": hubspot_result.get("sent", False),
+        "webhook": webhook_result.get("sent", False),
+    }
+
+@api_router.get("/leads")
+async def get_leads(limit: int = 100):
+    leads = await db.car_leads.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return {"leads": leads, "total": len(leads)}
+
+# ── RANGES ROUTES ───────────────────────────────────────────────────
+
+@api_router.get("/ranges")
+async def get_ranges():
+    ranges = await db.ranges.find({}, {"_id": 0}).sort("start_value", 1).to_list(100)
+    return {"ranges": ranges}
+
+@api_router.post("/ranges")
+async def create_range(r: RangeCreate):
+    range_id = str(uuid.uuid4())
+    doc = {
+        "id": range_id,
+        "start_value": r.start_value,
+        "end_value": r.end_value,
+        "range_value": r.range_value,
+    }
+    await db.ranges.insert_one(doc)
+    return {"id": range_id, "created": True}
+
+@api_router.delete("/ranges/{range_id}")
+async def delete_range(range_id: str):
+    result = await db.ranges.delete_one({"id": range_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Range not found")
+    return {"deleted": True}
+
+# ── SETTINGS ROUTES ─────────────────────────────────────────────────
+
+@api_router.get("/settings")
+async def get_settings():
+    settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+    if not settings:
+        settings = {
+            "key": "global",
+            "autobiz_market_value": autobiz_service.AUTOBIZ_MARKET_VALUE,
+            "default_discount_percent": pricing_service.DEFAULT_DISCOUNT_PERCENT,
+            "autobiz_configured": autobiz_service.is_configured(),
+            "hubspot_enabled": hubspot_service.ENABLE_HUBSPOT,
+            "webhook_enabled": webhook_service.ENABLE_WEBHOOK,
+        }
+    return settings
+
+# ── UPLOAD ROUTES ───────────────────────────────────────────────────
 
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -209,7 +246,7 @@ async def upload_file(file: UploadFile = File(...)):
         "content_type": content_type,
         "size": result.get("size", len(data)),
         "is_deleted": False,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"path": result["path"], "url": f"/api/files/{result['path']}"}
 
@@ -221,70 +258,39 @@ async def serve_file(path: str):
     data, ct = get_object(path)
     return Response(content=data, media_type=record.get("content_type", ct))
 
-@api_router.post("/leads", response_model=LeadResponse)
-async def create_lead(lead: LeadCreate):
-    lead_id = str(uuid.uuid4())
-    doc = {
-        "id": lead_id,
-        "vehicule": lead.vehicule.model_dump(),
-        "client": lead.client.model_dump(),
-        "rdv": lead.rdv.model_dump(),
-        "photos": lead.photos,
-        "estimation": lead.estimation,
-        "status": "new",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "source": "website",
-    }
-    await db.leads.insert_one(doc)
-    doc.pop("_id", None)
-    doc.pop("source", None)
-    return LeadResponse(**doc)
-
-@api_router.get("/leads", response_model=List[LeadResponse])
-async def get_leads():
-    leads = await db.leads.find({}, {"_id": 0, "source": 0}).to_list(1000)
-    return [LeadResponse(**l) for l in leads]
-
-@api_router.post("/leads/partial")
-async def save_partial_lead(data: PartialLeadCreate):
-    partial_id = str(uuid.uuid4())
-    doc = {
-        "id": partial_id,
-        "step": data.step,
-        "data": data.data,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "converted": False,
-    }
-    await db.partial_leads.insert_one(doc)
-    return {"id": partial_id, "saved": True}
-
-@api_router.get("/appointments/slots")
-async def get_appointment_slots(date: str = Query(None)):
-    """Return available time slots for a given date."""
-    slots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"]
-    return {"date": date, "slots": slots}
+# ── CENTERS & APPOINTMENTS ──────────────────────────────────────────
 
 @api_router.get("/centers")
 async def get_centers():
-    centers = [
+    return {"centers": [
         {"id": "paris", "name": "Paris - Nation", "address": "12 Rue de la Roquette, 75011 Paris", "phone": "01 42 00 00 00", "code_postal_prefix": "75"},
         {"id": "lyon", "name": "Lyon - Part-Dieu", "address": "45 Rue Garibaldi, 69003 Lyon", "phone": "04 72 00 00 00", "code_postal_prefix": "69"},
         {"id": "marseille", "name": "Marseille - Prado", "address": "88 Avenue du Prado, 13008 Marseille", "phone": "04 91 00 00 00", "code_postal_prefix": "13"},
         {"id": "toulouse", "name": "Toulouse - Capitole", "address": "22 Allees Jean Jaures, 31000 Toulouse", "phone": "05 61 00 00 00", "code_postal_prefix": "31"},
         {"id": "bordeaux", "name": "Bordeaux - Meriadeck", "address": "15 Rue du Chateau d'Eau, 33000 Bordeaux", "phone": "05 56 00 00 00", "code_postal_prefix": "33"},
-    ]
-    return {"centers": centers}
+    ]}
+
+@api_router.get("/appointments/slots")
+async def get_appointment_slots(date: str = Query(None)):
+    return {"date": date, "slots": ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"]}
+
+# ── TRACKING ────────────────────────────────────────────────────────
 
 @api_router.post("/tracking")
 async def track_event(event: TrackingEvent):
-    doc = {
+    await db.tracking_events.insert_one({
         "id": str(uuid.uuid4()),
         "event": event.event,
         "properties": event.properties,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.tracking_events.insert_one(doc)
+    })
     return {"tracked": True}
+
+# ── HEALTH ──────────────────────────────────────────────────────────
+
+@api_router.get("/")
+async def root():
+    return {"status": "ok", "autobiz_configured": autobiz_service.is_configured()}
 
 # ── App setup ────────────────────────────────────────────────────────
 
@@ -300,11 +306,28 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
+    # Init storage
     try:
         init_storage()
-        logger.info("Object storage initialized successfully")
+        logger.info("Object storage initialized")
     except Exception as e:
-        logger.error(f"Storage init failed (will retry on first upload): {e}")
+        logger.error(f"Storage init failed: {e}")
+
+    # Seed default ranges if empty
+    count = await db.ranges.count_documents({})
+    if count == 0:
+        default_ranges = [
+            {"id": str(uuid.uuid4()), "start_value": 0, "end_value": 3000, "range_value": -25},
+            {"id": str(uuid.uuid4()), "start_value": 3000, "end_value": 5000, "range_value": -20},
+            {"id": str(uuid.uuid4()), "start_value": 5000, "end_value": 10000, "range_value": -15},
+            {"id": str(uuid.uuid4()), "start_value": 10000, "end_value": 20000, "range_value": -12},
+            {"id": str(uuid.uuid4()), "start_value": 20000, "end_value": 50000, "range_value": -10},
+            {"id": str(uuid.uuid4()), "start_value": 50000, "end_value": 200000, "range_value": -8},
+        ]
+        await db.ranges.insert_many(default_ranges)
+        logger.info(f"Seeded {len(default_ranges)} default ranges")
+
+    logger.info(f"Autobiz configured: {autobiz_service.is_configured()}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

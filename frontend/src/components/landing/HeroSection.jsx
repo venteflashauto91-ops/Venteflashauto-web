@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, Clock, Zap } from 'lucide-react';
-import { trackEvent, EVENTS } from '@/lib/tracking';
+import { trackEvent } from '@/lib/api';
+import { buildUrlWithUtm } from '@/lib/utm';
 
 const HERO_BG = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/plo7dwqy_header.png';
 
@@ -12,8 +13,8 @@ export default function HeroSection() {
   const handleEstimate = (e) => {
     e.preventDefault();
     if (!immat.trim()) return;
-    trackEvent(EVENTS.ESTIMATION_STARTED, { immatriculation: immat });
-    navigate(`/estimation?immat=${encodeURIComponent(immat.trim())}`);
+    trackEvent('estimation_started', { plate: immat });
+    navigate(buildUrlWithUtm('/car-search', { car_info: immat.trim() }));
   };
 
   return (

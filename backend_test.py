@@ -59,49 +59,54 @@ class VehicleBuybackAPITester:
         """Test API root endpoint"""
         return self.run_test("API Root", "GET", "", 200)
 
-    def test_vehicle_identify(self, plate="AA123BB"):
-        """Test vehicle identification with known plate"""
+    def test_autobiz_identify(self, plate="AA123BB"):
+        """Test Autobiz vehicle identification with known plate"""
         success, response = self.run_test(
-            f"Vehicle Identify - {plate}",
+            f"Autobiz Identify - {plate}",
             "POST",
-            "vehicle/identify",
+            "autobiz/identify",
             200,
-            data={"immatriculation": plate}
+            data={"plate": plate}
         )
         if success and response.get('found'):
-            print(f"   Vehicle found: {response.get('marque')} {response.get('modele')}")
+            vehicle = response.get('vehicle', {})
+            print(f"   Vehicle found: {vehicle.get('make')} {vehicle.get('model')} ({vehicle.get('year')})")
             return True, response
         return False, {}
 
-    def test_vehicle_identify_unknown(self, plate="UNKNOWN123"):
-        """Test vehicle identification with unknown plate"""
+    def test_autobiz_identify_unknown(self, plate="UNKNOWN123"):
+        """Test Autobiz vehicle identification with unknown plate"""
         success, response = self.run_test(
-            f"Vehicle Identify Unknown - {plate}",
+            f"Autobiz Identify Unknown - {plate}",
             "POST",
-            "vehicle/identify",
+            "autobiz/identify",
             200,
-            data={"immatriculation": plate}
+            data={"plate": plate}
         )
         # Should still return 200 but with mock data
         return success, response
 
-    def test_vehicle_estimate(self, vehicle_data=None):
-        """Test vehicle estimation"""
+    def test_autobiz_quote(self, vehicle_data=None):
+        """Test Autobiz quotation"""
         if not vehicle_data:
             vehicle_data = {
-                "marque": "Peugeot",
-                "modele": "208",
-                "annee": "2020"
+                "make": "Peugeot",
+                "model": "208",
+                "year": 2020,
+                "fuel": "Essence"
             }
         success, response = self.run_test(
-            "Vehicle Estimate",
+            "Autobiz Quote",
             "POST",
-            "vehicle/estimate",
+            "autobiz/quote",
             200,
-            data=vehicle_data
+            data={"vehicle": vehicle_data, "mileage": 50000}
         )
-        if success and 'estimation' in response:
-            print(f"   Estimation: {response['estimation']} EUR")
+        if success and 'pricing' in response:
+            pricing = response['pricing']
+            print(f"   Base price: {pricing.get('base_price')} EUR")
+            print(f"   Final price: {pricing.get('final_price')} EUR")
+            print(f"   Discount: {pricing.get('discount_percent')}%")
         return success, response
 
     def test_get_centers(self):
@@ -129,50 +134,85 @@ class VehicleBuybackAPITester:
             print(f"   Found {len(response['slots'])} time slots")
         return success, response
 
-    def test_create_lead(self):
-        """Test creating a lead"""
+    def test_get_ranges(self):
+        """Test getting price ranges"""
+        success, response = self.run_test(
+            "Get Ranges",
+            "GET",
+            "ranges",
+            200
+        )
+        if success and 'ranges' in response:
+            ranges = response['ranges']
+            print(f"   Found {len(ranges)} price ranges")
+            for r in ranges[:3]:  # Show first 3 ranges
+                print(f"   Range: {r.get('start_value')}-{r.get('end_value')} EUR -> {r.get('range_value')}%")
+        return success, response
+
+    def test_get_settings(self):
+        """Test getting settings"""
+        success, response = self.run_test(
+            "Get Settings",
+            "GET",
+            "settings",
+            200
+        )
+        if success:
+            print(f"   Autobiz configured: {response.get('autobiz_configured')}")
+            print(f"   Market value type: {response.get('autobiz_market_value')}")
+        return success, response
+
+    def test_save_lead(self):
+        """Test saving a complete lead"""
         lead_data = {
-            "vehicule": {
-                "immatriculation": "AA123BB",
-                "marque": "Peugeot",
-                "modele": "208",
+            "plate": "AA123BB",
+            "vehicle": {
+                "make": "Peugeot",
+                "model": "208",
                 "version": "1.2 PureTech 100 Active",
-                "annee": "2020",
-                "carburant": "Essence",
-                "kilometrage": "50000",
-                "etat": "bon",
-                "roulant": True,
-                "importe": False,
-                "premiere_main": True,
-                "carnet_entretien": True,
-                "factures_entretien": False,
-                "defauts": ""
+                "year": 2020,
+                "fuel": "Essence",
+                "body": "Berline",
+                "doors": 5,
+                "gearbox": "Manuelle",
+                "power": 100,
+                "engineSize": "1.2"
             },
+            "mileage": 50000,
+            "is_drivable": True,
+            "condition": "bon",
+            "defects": "",
+            "first_owner": True,
+            "service_book": True,
+            "service_invoices": False,
+            "imported": False,
             "client": {
-                "nom": "Dupont",
-                "prenom": "Jean",
+                "firstname": "Jean",
+                "lastname": "Dupont",
                 "email": "jean.dupont@test.com",
-                "telephone": "0123456789",
-                "code_postal": "75001"
+                "phone": "0123456789",
+                "postal_code": "75001"
             },
-            "rdv": {
-                "date": "2024-12-20",
-                "heure": "10:00",
-                "centre": "paris"
+            "pricing": {
+                "base_price": 10000,
+                "final_price": 8000,
+                "discount_percent": -20
             },
             "photos": [],
-            "estimation": 12000
+            "utm": {},
+            "source": "website"
         }
         
         success, response = self.run_test(
-            "Create Lead",
+            "Save Lead",
             "POST",
-            "leads",
+            "leads/save",
             200,
             data=lead_data
         )
         if success and 'id' in response:
             print(f"   Lead created with ID: {response['id']}")
+            print(f"   Status: {response.get('status')}")
             return True, response['id']
         return False, None
 
@@ -184,29 +224,10 @@ class VehicleBuybackAPITester:
             "leads",
             200
         )
-        if success and isinstance(response, list):
-            print(f"   Found {len(response)} leads")
-        return success, response
-
-    def test_save_partial_lead(self):
-        """Test saving partial lead"""
-        partial_data = {
-            "step": 1,
-            "data": {
-                "vehicule": {
-                    "immatriculation": "AA123BB",
-                    "marque": "Peugeot"
-                }
-            }
-        }
-        
-        success, response = self.run_test(
-            "Save Partial Lead",
-            "POST",
-            "leads/partial",
-            200,
-            data=partial_data
-        )
+        if success and 'leads' in response:
+            leads = response['leads']
+            print(f"   Found {len(leads)} leads")
+            print(f"   Total: {response.get('total', 0)}")
         return success, response
 
     def test_tracking(self):
@@ -226,6 +247,8 @@ class VehicleBuybackAPITester:
             200,
             data=tracking_data
         )
+        if success and response.get('tracked'):
+            print(f"   Event tracked successfully")
         return success, response
 
 def main():
@@ -237,13 +260,24 @@ def main():
     # Test basic connectivity
     tester.test_root_endpoint()
     
-    # Test vehicle identification and estimation flow
-    success, vehicle_data = tester.test_vehicle_identify("AA123BB")
-    if success:
-        tester.test_vehicle_estimate(vehicle_data)
+    # Test configuration endpoints
+    tester.test_get_settings()
+    tester.test_get_ranges()
     
-    # Test with unknown plate
-    tester.test_vehicle_identify_unknown("UNKNOWN123")
+    # Test Autobiz integration (mocked)
+    test_plates = ["AA123BB", "CC456DD", "GG012HH"]
+    vehicle_data = None
+    
+    for plate in test_plates:
+        success, response = tester.test_autobiz_identify(plate)
+        if success and response.get('found'):
+            vehicle_data = response.get('vehicle')
+            # Test quotation with this vehicle
+            tester.test_autobiz_quote(vehicle_data)
+            break
+    
+    # Test with unknown plate (should still work with mock)
+    tester.test_autobiz_identify_unknown("UNKNOWN123")
     
     # Test centers and appointments
     tester.test_get_centers()
@@ -251,11 +285,8 @@ def main():
     
     # Test lead creation and retrieval
     lead_id = None
-    success, lead_id = tester.test_create_lead()
+    success, lead_id = tester.test_save_lead()
     tester.test_get_leads()
-    
-    # Test partial lead saving
-    tester.test_save_partial_lead()
     
     # Test tracking
     tester.test_tracking()
