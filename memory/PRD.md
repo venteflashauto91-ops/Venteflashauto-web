@@ -1,61 +1,61 @@
-# VenteFlash Auto - PRD
+# VenteFlashAuto - PRD
+
+## Problem Statement
+Site web de reprise de vehicules pour particuliers (similaire a venteflashauto.fr). Estimation en ligne via saisie de plaque d'immatriculation, formulaire progressif avec capture de leads et prise de rendez-vous, soumission automatisee vers API externe (plateforme VO). Optimise pour la conversion, rapide, mobile-first. Architecture securisee et moderne remplacant un plugin WordPress legacy.
 
 ## Architecture
-- **Frontend**: React + Tailwind + Shadcn UI
-- **Backend**: FastAPI + MongoDB + Object Storage
-- **Services**: autobiz_service, pricing_service, hubspot_service, webhook_service
-- **Database**: car_leads, ranges, settings, files, tracking_events
+- **Frontend**: React (SPA) avec react-router-dom, Shadcn/UI, Tailwind CSS
+- **Backend**: FastAPI (Python), architecture BFF (Backend-for-Frontend)
+- **Database**: MongoDB (motor async driver)
+- **Design**: Polices Poppins/Mulish, couleur principale #ff4605, fond #F3F4F6
 
-## Business Flow
-1. User enters plate on homepage
-2. Redirect to /car-search?car_info=PLATE (preserves UTM)
-3. Backend identifies vehicle via Autobiz (mock until credentials configured)
-4. Vehicle data prefilled on form
-5. User completes mileage, condition, details
-6. Backend calculates price via ranges
-7. User fills contact form
-8. Lead saved to car_leads
-9. Redirect to /result-page
-10. Optional: HubSpot + webhook integrations (stubs ready)
+## Core Routes
+- `/` - Landing page avec saisie plaque
+- `/car-search?car_info=PLATE` - Formulaire progressif
+- `/result-page` - Page de confirmation apres soumission
+- `/estimation` - Redirect legacy vers /car-search
 
-## Pages
-- / - Landing page (hero, social proof, how it works, testimonials, centers, footer)
-- /car-search - Vehicle form + estimation + contact
-- /result-page - Confirmation + estimation display
-- /car-estimation-page-2 - Non-drivable vehicles flow
+## API Endpoints
+- `POST /api/autobiz/identify` - Identification vehicule par plaque
+- `POST /api/autobiz/quote` - Estimation de prix
+- `POST /api/leads/save` - Sauvegarde lead en BDD
+- `GET /api/leads` - Liste des leads
+- `GET /api/ranges` - Fourchettes de prix
+- `POST /api/ranges` - Creer une fourchette
+- `DELETE /api/ranges/{id}` - Supprimer une fourchette
+- `GET /api/settings` - Configuration globale
+- `POST /api/upload` - Upload photo vehicule
+- `GET /api/centers` - Centres de reprise
+- `GET /api/appointments/slots` - Creneaux RDV
+- `POST /api/tracking` - Evenements analytics
 
-## API Routes
-- POST /api/autobiz/identify - Vehicle identification (backend-only)
-- POST /api/autobiz/quote - Price quotation + range pricing
-- POST /api/leads/save - Save complete lead
-- GET /api/leads - List leads
-- GET /api/ranges - List price ranges
-- POST /api/ranges - Create range
-- DELETE /api/ranges/{id} - Delete range
-- GET /api/settings - Configuration status
+## DB Schema
+- `car_leads`: { vehicle, client, pricing, is_drivable, condition, defects, photos, utm, status, created_at }
+- `ranges`: { start_value, end_value, range_value }
+- `settings`: { key, autobiz_market_value, default_discount_percent }
 
-## Env Variables
-- AUTOBIZ_USERNAME, AUTOBIZ_PASSWORD, AUTOBIZ_BASE_URL
-- AUTOBIZ_MARKET_VALUE=tradeIn
-- DEFAULT_DISCOUNT_PERCENT=0
-- HUBSPOT_API_KEY, ENABLE_HUBSPOT=false
-- WEBHOOK_URL, ENABLE_WEBHOOK=false
+## Completed Features (March 2026)
+- [x] Landing page avec design exact (skyline, logo, social proof, temoignages)
+- [x] Formulaire progressif a revele conditionnel (13 champs -> drivable -> contact)
+- [x] Identification vehicule mockee (5 plaques connues + generation aleatoire)
+- [x] Estimation de prix avec logique de fourchettes
+- [x] Sauvegarde des leads en MongoDB
+- [x] Page resultat avec prix et prochaines etapes
+- [x] Upload photos vehicule
+- [x] Suivi UTM parameters
+- [x] Events tracking
+- [x] Seed automatique des fourchettes de prix par defaut
+- [x] Nettoyage fichiers obsoletes (FormStep1-6, FormPage, CarEstimationPage2)
+- [x] Fallback saisie manuelle de plaque si pas de param URL
 
-## What's Been Implemented (2026-03-31)
-- [x] Secure backend-only Autobiz integration (mock active)
-- [x] Range-based pricing with 6 default brackets
-- [x] Full lead capture flow (plate → identify → quote → contact → save)
-- [x] Non-drivable vehicles alternative flow
-- [x] UTM parameter preservation
-- [x] Object Storage for photos
-- [x] HubSpot + Webhook stubs
-- [x] Landing page with all sections
+## Mocked/Stubbed
+- MOCK: autobiz_service.py (identification + cotation vehicule)
+- STUB: hubspot_service.py (CRM - desactive)
+- STUB: webhook_service.py (webhook - desactive)
 
 ## Backlog
-### P0
-- [ ] Configure real Autobiz credentials
-- [ ] Connect real HubSpot API key
-### P1
-- [ ] Admin dashboard for leads/ranges management
-- [ ] Email notifications
-- [ ] Real webhook integration
+- P0: Connexion API Autobiz reelle (necessite credentials utilisateur)
+- P1: Dashboard Admin (visualiser leads, gerer fourchettes de prix)
+- P1: Integration HubSpot reelle (necessite HUBSPOT_API_KEY)
+- P1: Integration Webhook reelle (necessite WEBHOOK_URL)
+- P2: Connexion client et suivi de vente (V2)
