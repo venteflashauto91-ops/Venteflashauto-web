@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Loader2, CheckCircle2, Camera, X, ArrowRight, ArrowLeft, Car, Fuel, Calendar, Gauge, Settings2 } from 'lucide-react';
+import { Loader2, CheckCircle2, Camera, X, ArrowRight, Car, Fuel, Calendar, Gauge, Settings2, Cog, DoorOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,109 +9,115 @@ import { getMergedUtm, storeUtm, buildUrlWithUtm } from '@/lib/utm';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
-const FUEL_OPTIONS = ['Essence', 'Diesel', 'Hybride', 'Electrique', 'GPL'];
-const GEARBOX_OPTIONS = ['Manuelle', 'Automatique'];
-const CONDITION_OPTIONS = [
-  { value: 'excellent', label: 'Excellent', desc: 'Comme neuf' },
-  { value: 'bon', label: 'Bon', desc: 'Usure normale' },
-  { value: 'moyen', label: 'Moyen', desc: 'Defauts visibles' },
-  { value: 'mauvais', label: 'Mauvais', desc: 'Degats importants' },
+/* ── Fields required to unlock next sections (matches legacy valuesToOpenAdditional) ── */
+const REQUIRED_VEHICLE_FIELDS = [
+  'make', 'model', 'month', 'year', 'fuel', 'body', 'doors', 'gearbox', 'power', 'engineSize', 'dateRelease', 'version', 'km',
 ];
+
+const BOOLEAN_QUESTIONS = [
+  { key: 'imported', label: 'Vehicule importe ?' },
+  { key: 'firstHand', label: 'Premiere main ?' },
+  { key: 'maintenanceBook', label: 'Carnet d\'entretien ?' },
+  { key: 'maintenanceInvoices', label: 'Factures d\'entretien ?' },
+];
+
+const MONTHS_FR = ['', 'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'];
 
 export default function CarSearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const plate = searchParams.get('car_info') || '';
+  const plate = searchParams.get('car_info') || searchParams.get('immat') || '';
   const fileRef = useRef(null);
 
-  // State
-  const [step, setStep] = useState('loading'); // loading | vehicle | details | contact
+  // ── Vehicle state ──
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [vehicle, setVehicle] = useState(null);
-  const [vehicleRaw, setVehicleRaw] = useState({});
-  const [mileage, setMileage] = useState('');
-  const [isDrivable, setIsDrivable] = useState(true);
-  const [condition, setCondition] = useState('');
-  const [defects, setDefects] = useState('');
-  const [firstOwner, setFirstOwner] = useState(false);
-  const [serviceBook, setServiceBook] = useState(false);
-  const [serviceInvoices, setServiceInvoices] = useState(false);
-  const [imported, setImported] = useState(false);
+  const [identified, setIdentified] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [values, setValues] = useState({
+    make: '', model: '', month: '', year: '', fuel: '', body: '', doors: '',
+    gearbox: '', power: '', engineSize: '', dateRelease: '', version: '', km: '',
+  });
+
+  // ── Drivable / Additional ──
+  const [drivable, setDrivable] = useState(null);       // null | 'yes' | 'no'
+  const [reason, setReason] = useState('');
+  const [reasonText, setReasonText] = useState('');
+
+  // ── Boolean questions (only if drivable=yes) ──
+  const [boolAnswers, setBoolAnswers] = useState({ imported: null, firstHand: null, maintenanceBook: null, maintenanceInvoices: null });
+
+  // ── Photos ──
   const [photos, setPhotos] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [pricing, setPricing] = useState(null);
+
+  // ── Contact ──
   const [client, setClient] = useState({ firstname: '', lastname: '', email: '', phone: '', postal_code: '' });
 
-  // Store UTM on mount
+  // ── Pricing ──
+  const [pricing, setPricing] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+
+  // ── UTM ──
   useEffect(() => { storeUtm(); }, []);
 
-  // Auto-identify vehicle on mount
+  // ── Auto-identify on mount ──
   useEffect(() => {
-    if (!plate) {
-      setStep('vehicle');
-      setError('Aucune plaque fournie');
-      return;
-    }
-    identifyPlate(plate);
+    if (plate) identifyPlate(plate);
   }, [plate]);
 
+  // ── Progressive unlock checks ──
+  const allVehicleFieldsFilled = useMemo(() => {
+    return REQUIRED_VEHICLE_FIELDS.every(k => values[k] !== '' && values[k] !== null && values[k] !== undefined);
+  }, [values]);
+
+  const allBoolAnswered = useMemo(() => {
+    return Object.values(boolAnswers).every(v => v !== null);
+  }, [boolAnswers]);
+
+  const showDrivableSection = allVehicleFieldsFilled;
+  const showAdditionalSection = allVehicleFieldsFilled && drivable === 'yes';
+  const showReasonSection = allVehicleFieldsFilled && drivable === 'no';
+  const showContactSection = (drivable === 'no' && allVehicleFieldsFilled) || (drivable === 'yes' && allVehicleFieldsFilled && allBoolAnswered);
+
+  // ── Handlers ──
   const identifyPlate = async (p) => {
     setLoading(true);
     setError('');
-    setStep('loading');
     try {
       trackEvent('estimation_started', { plate: p });
       const result = await identifyVehicle(p);
       if (result.found) {
-        setVehicle(result.vehicle);
-        setVehicleRaw(result.vehicle);
-        trackEvent('vehicle_identified', { plate: p, make: result.vehicle.make, model: result.vehicle.model });
-        setStep('vehicle');
+        const v = result.vehicle;
+        const date = v.dateRelease ? new Date(v.dateRelease) : null;
+        const monthNum = date ? date.getMonth() + 1 : '';
+        const monthName = date ? MONTHS_FR[date.getMonth() + 1] : '';
+        setValues({
+          make: v.make || '', model: v.model || '',
+          month: monthName, year: v.year || (date ? date.getFullYear() : ''),
+          fuel: v.fuel || '', body: v.body || '', doors: v.doors || '',
+          gearbox: v.gearbox || '', power: v.power || '', engineSize: v.engineSize || '',
+          dateRelease: v.dateRelease || '',
+          version: '', // Must be selected by user
+          km: v.km || '',
+        });
+        setVersions(result.versions || []);
+        setIdentified(true);
+        trackEvent('vehicle_identified', { plate: p, make: v.make, model: v.model });
       } else {
-        setError('Vehicule non trouve');
-        setStep('vehicle');
+        setError('Vehicule non trouve. Verifiez la plaque.');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erreur identification');
-      setStep('vehicle');
+      setError(err.response?.data?.detail || 'Erreur lors de l\'identification du vehicule.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleNonDrivable = () => {
-    const utm = getMergedUtm();
-    navigate(buildUrlWithUtm('/car-estimation-page-2', { car_info: plate }));
-  };
-
-  const handleGetQuote = async () => {
-    if (!mileage || !condition) return;
-
-    // If not drivable, redirect
-    if (!isDrivable) {
-      handleNonDrivable();
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await getQuotation(vehicleRaw, parseInt(mileage));
-      setPricing(result.pricing);
-      trackEvent('estimation_completed', {
-        plate,
-        make: vehicle?.make,
-        base_price: result.pricing?.base_price,
-        final_price: result.pricing?.final_price,
-      });
-      setStep('contact');
-    } catch {
-      setError('Erreur lors du calcul de l\'estimation');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const updateValue = (key, val) => setValues(prev => ({ ...prev, [key]: val }));
+  const updateClient = (key, val) => setClient(prev => ({ ...prev, [key]: val }));
+  const setBool = (key, val) => setBoolAnswers(prev => ({ ...prev, [key]: val }));
 
   const handlePhotoUpload = async (files) => {
     if (!files?.length) return;
@@ -119,66 +125,69 @@ export default function CarSearchPage() {
     for (const file of Array.from(files)) {
       try {
         const preview = URL.createObjectURL(file);
-        setPreviews(prev => [...prev, preview]);
+        setPreviews(p => [...p, preview]);
         const result = await uploadPhoto(file);
-        setPhotos(prev => [...prev, result.path]);
+        setPhotos(p => [...p, result.path]);
         trackEvent('photo_uploaded');
-      } catch (err) {
-        console.error('Upload error:', err);
-      }
+      } catch { /* silent */ }
     }
     setUploading(false);
   };
 
-  const removePhoto = (index) => {
-    setPreviews(prev => prev.filter((_, i) => i !== index));
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+  const removePhoto = (i) => {
+    setPreviews(p => p.filter((_, idx) => idx !== i));
+    setPhotos(p => p.filter((_, idx) => idx !== i));
   };
 
-  const handleSubmitLead = async () => {
-    if (!client.firstname || !client.lastname || !client.email || !client.phone) return;
-    setLoading(true);
+  const handleGetQuote = async () => {
+    setQuoteLoading(true);
     try {
-      await trackEvent('lead_submitted', { plate, make: vehicle?.make });
-      navigate(buildUrlWithUtm('/result-page', {
-        plate,
-        make: vehicle?.make || '',
-        model: vehicle?.model || '',
-        year: vehicle?.year || '',
-        mileage,
-        price: pricing?.final_price || 0,
-        firstname: client.firstname,
-        // Pass lead data via state to avoid exposing in URL
-      }), {
-        state: {
-          vehicle: vehicleRaw,
-          plate,
-          mileage: parseInt(mileage),
-          isDrivable,
-          condition,
-          defects,
-          firstOwner,
-          serviceBook,
-          serviceInvoices,
-          imported,
-          client,
-          pricing,
-          photos,
-          utm: getMergedUtm(),
-        }
-      });
+      const vehicleData = { ...values, plate };
+      const result = await getQuotation(vehicleData, parseInt(values.km) || 0);
+      setPricing(result.pricing);
+      trackEvent('estimation_completed', { plate, base_price: result.pricing?.base_price, final_price: result.pricing?.final_price });
     } catch {
-      setError('Erreur lors de la soumission');
+      setError('Erreur calcul estimation');
     } finally {
-      setLoading(false);
+      setQuoteLoading(false);
     }
   };
 
-  const updateClient = (field, val) => setClient(prev => ({ ...prev, [field]: val }));
+  const handleSubmit = async () => {
+    if (!client.firstname || !client.lastname || !client.email || !client.phone) return;
+    setLoading(true);
+    try {
+      // Get quote if not yet done
+      let finalPricing = pricing;
+      if (!finalPricing && drivable === 'yes') {
+        const result = await getQuotation({ ...values, plate }, parseInt(values.km) || 0);
+        finalPricing = result.pricing;
+      }
+      trackEvent('lead_submitted', { plate, make: values.make });
+      navigate(buildUrlWithUtm('/result-page'), {
+        state: {
+          plate, vehicle: values, mileage: parseInt(values.km) || 0,
+          isDrivable: drivable === 'yes', condition: drivable === 'no' ? 'non_roulant' : 'bon',
+          defects: reasonText, firstOwner: boolAnswers.firstHand === 'yes',
+          serviceBook: boolAnswers.maintenanceBook === 'yes', serviceInvoices: boolAnswers.maintenanceInvoices === 'yes',
+          imported: boolAnswers.imported === 'yes', client, pricing: finalPricing || { final_price: 0 },
+          photos, utm: getMergedUtm(), reason, version: values.version,
+        },
+      });
+    } catch { setError('Erreur soumission'); }
+    finally { setLoading(false); }
+  };
 
-  // ── Render ────────────────────────────────────────────────────────
+  // ── Manual plate entry ──
+  const [manualPlate, setManualPlate] = useState('');
+  const handleManualSearch = (e) => {
+    e.preventDefault();
+    if (!manualPlate.trim()) return;
+    navigate(`/car-search?car_info=${encodeURIComponent(manualPlate.trim().toUpperCase())}`);
+  };
 
-  if (step === 'loading') {
+  // ── Loading screen ──
+  if (loading && !identified) {
     return (
       <div className="min-h-screen bg-[#F3F4F6] flex items-center justify-center">
         <div className="text-center">
@@ -197,171 +206,242 @@ export default function CarSearchPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="car-search-logo">
             <img src={LOGO_URL} alt="Venteflashauto" className="h-6 md:h-7 w-auto" />
-            <span className="font-['Mulish'] font-extrabold text-sm text-[#2B3A67]">
-              Venteflash<span className="text-[#ff4605]">auto</span>
-            </span>
+            <span className="font-['Mulish'] font-extrabold text-sm text-[#2B3A67]">Venteflash<span className="text-[#ff4605]">auto</span></span>
           </Link>
-          <span className="text-sm text-gray-500 font-medium">
-            {step === 'vehicle' ? 'Votre vehicule' : step === 'details' ? 'Details' : 'Vos coordonnees'}
-          </span>
+          <span className="text-xs text-gray-400">{plate}</span>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
+      <div className="max-w-3xl mx-auto px-4 py-6 md:py-10 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm" data-testid="car-search-error">
-            {error}
-          </div>
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm" data-testid="error-msg">{error}</div>
         )}
 
-        {/* ── STEP: VEHICLE ──────────────────────────────────── */}
-        {step === 'vehicle' && (
-          <div className="space-y-6 animate-fade-in-up" data-testid="step-vehicle">
-            <h1 className="font-['Mulish'] text-2xl sm:text-3xl font-[900] text-[#2B3A67]">
-              Votre vehicule
-            </h1>
+        {/* ── No plate: show input ── */}
+        {!plate && !identified && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-plate-input">
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Entrez votre plaque d'immatriculation</h2>
+            <form onSubmit={handleManualSearch} className="flex gap-3">
+              <Input
+                data-testid="input-manual-plate"
+                type="text"
+                placeholder="ex: AA123BB"
+                value={manualPlate}
+                onChange={(e) => setManualPlate(e.target.value.toUpperCase())}
+                className="h-12 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl text-lg flex-1"
+                maxLength={12}
+              />
+              <Button
+                data-testid="btn-manual-search"
+                type="submit"
+                disabled={!manualPlate.trim()}
+                className="h-12 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold rounded-xl px-6 disabled:opacity-50"
+              >
+                Rechercher
+              </Button>
+            </form>
+          </section>
+        )}
 
-            {vehicle && (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-md p-6" data-testid="vehicle-card">
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  <span className="text-sm font-bold text-green-600">Vehicule identifie</span>
-                  <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">{plate}</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <InfoItem icon={Car} label="Marque" value={vehicle.make} />
-                  <InfoItem icon={Car} label="Modele" value={vehicle.model} />
-                  <InfoItem icon={Settings2} label="Version" value={vehicle.version} className="col-span-2 sm:col-span-1" />
-                  <InfoItem icon={Calendar} label="Annee" value={vehicle.year} />
-                  <InfoItem icon={Fuel} label="Carburant" value={vehicle.fuel} />
-                  <InfoItem icon={Gauge} label="Puissance" value={`${vehicle.power} ch`} />
-                </div>
-              </div>
-            )}
-
-            {/* Mileage + condition */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-md p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-[#2B3A67] mb-2">Kilometrage *</label>
-                <Input
-                  data-testid="input-mileage"
-                  type="number"
-                  placeholder="Ex: 85000"
-                  value={mileage}
-                  onChange={(e) => setMileage(e.target.value)}
-                  className="h-12 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl text-lg"
-                />
-              </div>
-
-              <BoolField label="Le vehicule est-il roulant ?" value={isDrivable} onChange={setIsDrivable} testId="field-drivable" />
-
-              {!isDrivable && (
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800">
-                  Pour un vehicule non roulant, vous serez redirige vers un formulaire adapte.
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-bold text-[#2B3A67] mb-3">Etat general *</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {CONDITION_OPTIONS.map(c => (
-                    <button
-                      key={c.value}
-                      data-testid={`condition-${c.value}`}
-                      type="button"
-                      onClick={() => setCondition(c.value)}
-                      className={`p-3 rounded-xl border-2 text-left transition-all ${
-                        condition === c.value ? 'bg-[#ff4605]/10 border-[#ff4605]' : 'bg-white border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <p className={`font-bold text-sm ${condition === c.value ? 'text-[#ff4605]' : 'text-[#2B3A67]'}`}>{c.label}</p>
-                      <p className="text-xs text-gray-500">{c.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <BoolField label="Premiere main ?" value={firstOwner} onChange={setFirstOwner} testId="field-first-owner" />
-              <BoolField label="Carnet d'entretien ?" value={serviceBook} onChange={setServiceBook} testId="field-service-book" />
-              <BoolField label="Factures d'entretien ?" value={serviceInvoices} onChange={setServiceInvoices} testId="field-invoices" />
-              <BoolField label="Vehicule importe ?" value={imported} onChange={setImported} testId="field-imported" />
-
-              <div>
-                <label className="block text-sm font-bold text-[#2B3A67] mb-2">Defauts (optionnel)</label>
-                <Textarea
-                  data-testid="input-defects"
-                  placeholder="Decrivez les defauts..."
-                  value={defects}
-                  onChange={(e) => setDefects(e.target.value)}
-                  className="min-h-[80px] border-2 border-gray-200 focus:border-[#ff4605] rounded-xl"
-                />
-              </div>
-
-              {/* Photos */}
-              <div>
-                <label className="block text-sm font-bold text-[#2B3A67] mb-2">Photos (optionnel)</label>
-                <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
-                <div className="flex flex-wrap gap-3">
-                  {previews.map((p, i) => (
-                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
-                      <img src={p} alt="" className="w-full h-full object-cover" />
-                      <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    data-testid="btn-upload-photo"
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#ff4605] flex flex-col items-center justify-center gap-0.5 transition-colors"
-                  >
-                    {uploading ? <Loader2 className="w-5 h-5 text-gray-400 animate-spin" /> : <><Camera className="w-5 h-5 text-gray-400" /><span className="text-[10px] text-gray-400">Ajouter</span></>}
-                  </button>
-                </div>
-              </div>
+        {/* ══════════════════════════════════════════════════════
+           SECTION 1: Vehicle Information (always visible after identify)
+           ══════════════════════════════════════════════════════ */}
+        {identified && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-vehicle-info">
+            <div className="flex items-center gap-2 mb-5">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67]">Votre vehicule</h2>
+              <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">{plate}</span>
             </div>
 
-            <Button
-              data-testid="btn-get-quote"
-              onClick={handleGetQuote}
-              disabled={!mileage || !condition || loading}
-              className="w-full h-14 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              {isDrivable ? 'Obtenir mon estimation' : 'Continuer (vehicule non roulant)'}
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
+            {/* Pre-filled info grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 mb-5">
+              <ReadonlyField label="Marque" value={values.make} icon={Car} testId="field-make" />
+              <ReadonlyField label="Modele" value={values.model} icon={Car} testId="field-model" />
+              <ReadonlyField label="Mois" value={values.month} icon={Calendar} testId="field-month" />
+              <ReadonlyField label="Annee" value={values.year} icon={Calendar} testId="field-year" />
+              <ReadonlyField label="Carburant" value={values.fuel} icon={Fuel} testId="field-fuel" />
+              <ReadonlyField label="Carrosserie" value={values.body} icon={Car} testId="field-body" />
+              <ReadonlyField label="Portes" value={values.doors} icon={DoorOpen} testId="field-doors" />
+              <ReadonlyField label="Boite" value={values.gearbox} icon={Cog} testId="field-gearbox" />
+              <ReadonlyField label="Puissance" value={values.power ? `${values.power} ch` : ''} icon={Gauge} testId="field-power" />
+              <ReadonlyField label="Vitesses" value={values.engineSize} icon={Settings2} testId="field-engine" />
+              <ReadonlyField label="Date MEC" value={values.dateRelease} icon={Calendar} testId="field-reg" />
+            </div>
+
+            {/* Version dropdown (user must select) */}
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-[#2B3A67] mb-2">Version *</label>
+              <select
+                data-testid="select-version"
+                value={values.version}
+                onChange={(e) => updateValue('version', e.target.value)}
+                className="w-full h-12 px-3 border-2 border-gray-200 focus:border-[#ff4605] focus:ring-2 focus:ring-[#ff4605]/10 rounded-xl bg-white text-[#2B3A67] font-medium appearance-none cursor-pointer"
+              >
+                <option value="">Selectionner</option>
+                {versions.map(v => (
+                  <option key={v.id} value={`${v.id}: ${v.name}`}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* KM (editable, pre-filled) */}
+            <div>
+              <label className="block text-sm font-bold text-[#2B3A67] mb-2">Kilometrage *</label>
+              <Input
+                data-testid="input-km"
+                type="number"
+                placeholder="Ex: 85000"
+                value={values.km}
+                onChange={(e) => updateValue('km', e.target.value)}
+                className="h-12 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl text-lg"
+              />
+            </div>
+          </section>
         )}
 
-        {/* ── STEP: CONTACT ──────────────────────────────────── */}
-        {step === 'contact' && (
-          <div className="space-y-6 animate-fade-in-up" data-testid="step-contact">
-            <button onClick={() => setStep('vehicle')} className="flex items-center gap-1 text-sm text-gray-500 hover:text-[#2B3A67] transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Retour
-            </button>
+        {/* ══════════════════════════════════════════════════════
+           SECTION 2: Drivable? (unlocked when all vehicle fields filled)
+           ══════════════════════════════════════════════════════ */}
+        {showDrivableSection && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-drivable">
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Le vehicule est-il roulant ?</h2>
+            <div className="flex gap-3">
+              {[{ val: 'yes', lbl: 'Oui' }, { val: 'no', lbl: 'Non' }].map(({ val, lbl }) => (
+                <button
+                  key={val}
+                  data-testid={`drivable-${val}`}
+                  type="button"
+                  onClick={() => setDrivable(val)}
+                  className={`flex-1 py-4 rounded-xl text-base font-bold border-2 transition-all ${
+                    drivable === val ? 'bg-[#ff4605]/10 border-[#ff4605] text-[#ff4605]' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
-            <h1 className="font-['Mulish'] text-2xl sm:text-3xl font-[900] text-[#2B3A67]">
-              Votre estimation
-            </h1>
+        {/* ══════════════════════════════════════════════════════
+           SECTION 2b: Reason (only if NOT drivable)
+           ══════════════════════════════════════════════════════ */}
+        {showReasonSection && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-reason">
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Motif de non roulage</h2>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {['Panne mecanique', 'Accident', 'Panne electrique', 'Autre'].map(r => (
+                <button
+                  key={r}
+                  data-testid={`reason-${r.toLowerCase().replace(/ /g, '-')}`}
+                  type="button"
+                  onClick={() => setReason(r)}
+                  className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                    reason === r ? 'bg-[#ff4605]/10 border-[#ff4605] text-[#ff4605]' : 'bg-white border-gray-200 text-gray-500'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <Textarea
+              data-testid="input-reason-text"
+              placeholder="Precisions (optionnel)..."
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              className="min-h-[80px] border-2 border-gray-200 focus:border-[#ff4605] rounded-xl"
+            />
+          </section>
+        )}
 
-            {/* Estimation display */}
-            {pricing && (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-md p-6 text-center" data-testid="estimation-card">
-                <p className="text-sm text-gray-500 mb-1">Estimation pour votre {vehicle?.make} {vehicle?.model}</p>
-                <p className="font-['Mulish'] text-4xl sm:text-5xl font-[900] text-[#ff4605]">
-                  {Number(pricing.final_price).toLocaleString('fr-FR')} EUR
-                </p>
-                <p className="text-xs text-gray-400 mt-2">Prix indicatif - offre finale apres expertise en centre</p>
+        {/* ══════════════════════════════════════════════════════
+           SECTION 3: Additional questions (only if drivable=yes)
+           ══════════════════════════════════════════════════════ */}
+        {showAdditionalSection && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-additional">
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Informations complementaires</h2>
+            <div className="space-y-4">
+              {BOOLEAN_QUESTIONS.map(({ key, label }) => (
+                <BoolField
+                  key={key}
+                  label={label}
+                  value={boolAnswers[key]}
+                  onChange={(v) => setBool(key, v)}
+                  testId={`bool-${key}`}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════
+           SECTION 4: Photos (optional, visible with additional)
+           ══════════════════════════════════════════════════════ */}
+        {(showAdditionalSection || showReasonSection) && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-photos">
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-3">Photos du vehicule (optionnel)</h2>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
+            <div className="flex flex-wrap gap-3">
+              {previews.map((p, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
+                  <img src={p} alt="" className="w-full h-full object-cover" />
+                  <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                data-testid="btn-upload-photo"
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-[#ff4605] flex flex-col items-center justify-center gap-0.5 transition-colors"
+              >
+                {uploading ? <Loader2 className="w-5 h-5 text-gray-400 animate-spin" /> : <><Camera className="w-5 h-5 text-gray-400" /><span className="text-[10px] text-gray-400">Ajouter</span></>}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ══════════════════════════════════════════════════════
+           SECTION 5: Contact form (unlocked per legacy logic)
+           ══════════════════════════════════════════════════════ */}
+        {showContactSection && (
+          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-contact">
+            {/* Estimation preview (get quote if drivable) */}
+            {drivable === 'yes' && !pricing && (
+              <div className="mb-6">
+                <Button
+                  data-testid="btn-get-quote"
+                  onClick={handleGetQuote}
+                  disabled={quoteLoading}
+                  className="w-full h-12 bg-[#2B3A67] hover:bg-[#3B4D8A] text-white font-bold rounded-xl"
+                >
+                  {quoteLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                  Calculer mon estimation
+                </Button>
               </div>
             )}
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-md p-6 space-y-4">
-              <h2 className="font-['Mulish'] text-lg font-bold text-[#2B3A67]">Vos coordonnees</h2>
-              <p className="text-sm text-gray-500">Pour recevoir votre offre definitive</p>
+            {pricing && (
+              <div className="bg-[#F3F4F6] rounded-xl p-5 mb-6 text-center" data-testid="estimation-preview">
+                <p className="text-sm text-gray-500 mb-1">Estimation pour votre {values.make} {values.model}</p>
+                <p className="font-['Mulish'] text-4xl font-[900] text-[#ff4605]">
+                  {Number(pricing.final_price).toLocaleString('fr-FR')} EUR
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Prix indicatif - offre finale apres expertise</p>
+              </div>
+            )}
 
+            {drivable === 'no' && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6 text-sm text-orange-800">
+                Pour un vehicule non roulant, l'estimation sera faite sur place par nos experts.
+              </div>
+            )}
+
+            <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Vos coordonnees</h2>
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormInput label="Prenom *" testId="input-firstname" placeholder="Jean" value={client.firstname} onChange={(v) => updateClient('firstname', v)} />
                 <FormInput label="Nom *" testId="input-lastname" placeholder="Dupont" value={client.lastname} onChange={(v) => updateClient('lastname', v)} />
@@ -373,19 +453,20 @@ export default function CarSearchPage() {
 
             <Button
               data-testid="btn-submit-lead"
-              onClick={handleSubmitLead}
+              onClick={handleSubmit}
               disabled={!client.firstname || !client.lastname || !client.email || !client.phone || loading}
-              className="w-full h-14 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50"
+              className="w-full h-14 mt-6 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
               Valider ma demande
+              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
 
-            <div className="text-center flex items-center justify-center gap-4 text-xs text-gray-400">
+            <div className="text-center mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">
               <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Sans engagement</span>
               <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Donnees securisees</span>
             </div>
-          </div>
+          </section>
         )}
       </div>
     </div>
@@ -394,11 +475,11 @@ export default function CarSearchPage() {
 
 // ── Sub-components ──────────────────────────────────────────────────
 
-function InfoItem({ icon: Icon, label, value, className = '' }) {
+function ReadonlyField({ label, value, icon: Icon, testId }) {
   return (
-    <div className={className}>
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
-        <Icon className="w-3.5 h-3.5" />
+    <div data-testid={testId}>
+      <div className="flex items-center gap-1 text-xs text-gray-400 mb-0.5">
+        {Icon && <Icon className="w-3 h-3" />}
         {label}
       </div>
       <p className="font-bold text-[#2B3A67] text-sm">{value || '-'}</p>
@@ -411,10 +492,10 @@ function BoolField({ label, value, onChange, testId }) {
     <div>
       <p className="text-sm font-bold text-[#2B3A67] mb-2">{label}</p>
       <div className="flex gap-3">
-        {[{ val: true, lbl: 'Oui' }, { val: false, lbl: 'Non' }].map(({ val, lbl }) => (
+        {[{ val: 'yes', lbl: 'Oui' }, { val: 'no', lbl: 'Non' }].map(({ val, lbl }) => (
           <button
             key={lbl}
-            data-testid={`${testId}-${lbl.toLowerCase()}`}
+            data-testid={`${testId}-${val}`}
             type="button"
             onClick={() => onChange(val)}
             className={`flex-1 py-3 rounded-xl text-sm font-bold border-2 transition-all ${

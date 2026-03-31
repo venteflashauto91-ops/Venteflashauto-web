@@ -17,14 +17,30 @@ AUTOBIZ_MARKET_VALUE = os.environ.get("AUTOBIZ_MARKET_VALUE", "tradeIn")
 # ── Mock data (used when credentials are not configured) ─────────────
 
 MOCK_VEHICLES = {
-    "AA123BB": {"make": "Peugeot", "model": "208", "version": "1.2 PureTech 100 Active", "year": 2020, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Manuelle", "power": 100, "engineSize": "1.2"},
-    "CC456DD": {"make": "Renault", "model": "Clio V", "version": "1.0 TCe 100 Intens", "year": 2021, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Manuelle", "power": 100, "engineSize": "1.0"},
-    "EE789FF": {"make": "Citroen", "model": "C3", "version": "1.2 PureTech 83 Feel", "year": 2019, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Manuelle", "power": 83, "engineSize": "1.2"},
-    "GG012HH": {"make": "Volkswagen", "model": "Golf 8", "version": "1.5 TSI 150 Style", "year": 2022, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 150, "engineSize": "1.5"},
-    "KK345LL": {"make": "BMW", "model": "Serie 3", "version": "320d xDrive M Sport", "year": 2021, "fuel": "Diesel", "body": "Berline", "doors": 4, "gearbox": "Automatique", "power": 190, "engineSize": "2.0"},
-    "MM678NN": {"make": "Mercedes", "model": "Classe A", "version": "A 200 AMG Line", "year": 2020, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 163, "engineSize": "1.3"},
-    "PP901QQ": {"make": "Audi", "model": "A3", "version": "35 TFSI S Line", "year": 2022, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 150, "engineSize": "1.5"},
-    "AB123CD": {"make": "Toyota", "model": "Yaris", "version": "1.5 Hybride Dynamic", "year": 2023, "fuel": "Hybride", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 116, "engineSize": "1.5"},
+    "AA123BB": {"make": "Peugeot", "model": "208", "year": 2020, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Manuelle", "power": 100, "engineSize": "1.2", "speedNumber": 5, "dateRelease": "2020-03-15", "km": 45000, "versions": [
+        {"id": "208_1", "name": "1.2 PureTech 75 Like"},
+        {"id": "208_2", "name": "1.2 PureTech 100 Active"},
+        {"id": "208_3", "name": "1.2 PureTech 100 Allure"},
+        {"id": "208_4", "name": "1.2 PureTech 130 GT"},
+    ]},
+    "CC456DD": {"make": "Renault", "model": "Clio V", "year": 2021, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Manuelle", "power": 100, "engineSize": "1.0", "speedNumber": 5, "dateRelease": "2021-06-10", "km": 32000, "versions": [
+        {"id": "clio_1", "name": "1.0 TCe 90 Zen"},
+        {"id": "clio_2", "name": "1.0 TCe 100 Intens"},
+        {"id": "clio_3", "name": "1.0 TCe 100 RS Line"},
+    ]},
+    "GG012HH": {"make": "Volkswagen", "model": "Golf 8", "year": 2022, "fuel": "Essence", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 150, "engineSize": "1.5", "speedNumber": 7, "dateRelease": "2022-04-05", "km": 28000, "versions": [
+        {"id": "golf_1", "name": "1.0 TSI 110 Life"},
+        {"id": "golf_2", "name": "1.5 TSI 130 Style"},
+        {"id": "golf_3", "name": "1.5 TSI 150 Style"},
+    ]},
+    "KK345LL": {"make": "BMW", "model": "Serie 3", "year": 2021, "fuel": "Diesel", "body": "Berline", "doors": 4, "gearbox": "Automatique", "power": 190, "engineSize": "2.0", "speedNumber": 8, "dateRelease": "2021-09-12", "km": 55000, "versions": [
+        {"id": "s3_1", "name": "318d 150 Business Design"},
+        {"id": "s3_2", "name": "320d 190 M Sport"},
+    ]},
+    "AB123CD": {"make": "Toyota", "model": "Yaris", "year": 2023, "fuel": "Hybride", "body": "Berline", "doors": 5, "gearbox": "Automatique", "power": 116, "engineSize": "1.5", "speedNumber": 0, "dateRelease": "2023-07-22", "km": 15000, "versions": [
+        {"id": "y_1", "name": "1.5 Hybride 116 Dynamic"},
+        {"id": "y_2", "name": "1.5 Hybride 116 Design"},
+    ]},
 }
 
 MOCK_BASE_PRICES = {
@@ -157,26 +173,44 @@ def _extract_price(data: dict) -> float:
 
 
 def _mock_identify(plate: str) -> dict:
-    """Mock vehicle identification."""
+    """Mock vehicle identification with versions."""
     import random
     if plate in MOCK_VEHICLES:
-        return {"found": True, "source": "mock", "vehicle": MOCK_VEHICLES[plate]}
+        v = MOCK_VEHICLES[plate]
+        return {"found": True, "source": "mock", "vehicle": {k: v2 for k, v2 in v.items() if k != "versions"}, "versions": v.get("versions", [])}
 
     brands = [
-        {"make": "Peugeot", "model": "308", "version": "1.5 BlueHDi 130 Allure", "power": 130, "engineSize": "1.5"},
-        {"make": "Renault", "model": "Megane", "version": "1.3 TCe 140 Techno", "power": 140, "engineSize": "1.3"},
-        {"make": "Citroen", "model": "C4", "version": "1.2 PureTech 130 Shine", "power": 130, "engineSize": "1.2"},
-        {"make": "Dacia", "model": "Sandero", "version": "1.0 TCe 90 Stepway", "power": 90, "engineSize": "1.0"},
-        {"make": "Fiat", "model": "500", "version": "1.0 Hybrid 70 Lounge", "power": 70, "engineSize": "1.0"},
+        {"make": "Peugeot", "model": "308", "power": 130, "engineSize": "1.5", "versions": [
+            {"id": "308_1", "name": "1.2 PureTech 110 Active"},
+            {"id": "308_2", "name": "1.5 BlueHDi 130 Allure"},
+            {"id": "308_3", "name": "1.2 PureTech 130 GT"},
+        ]},
+        {"make": "Renault", "model": "Megane", "power": 140, "engineSize": "1.3", "versions": [
+            {"id": "meg_1", "name": "1.3 TCe 140 Techno"},
+            {"id": "meg_2", "name": "1.5 Blue dCi 115 Business"},
+        ]},
+        {"make": "Citroen", "model": "C4", "power": 130, "engineSize": "1.2", "versions": [
+            {"id": "c4_1", "name": "1.2 PureTech 130 Shine"},
+            {"id": "c4_2", "name": "1.5 BlueHDi 130 Feel"},
+        ]},
+        {"make": "Dacia", "model": "Sandero", "power": 90, "engineSize": "1.0", "versions": [
+            {"id": "sand_1", "name": "1.0 TCe 90 Stepway Expression"},
+            {"id": "sand_2", "name": "1.0 TCe 90 Stepway Extreme"},
+        ]},
     ]
     chosen = random.choice(brands)
+    versions = chosen.pop("versions")
     year = random.randint(2017, 2024)
+    month = random.randint(1, 12)
     fuel = random.choice(["Essence", "Diesel", "Hybride"])
     gearbox = random.choice(["Manuelle", "Automatique"])
+    km = random.randint(15000, 150000)
+    speedNumber = 5 if gearbox == "Manuelle" else 7
     return {
         "found": True,
         "source": "mock",
-        "vehicle": {**chosen, "year": year, "fuel": fuel, "body": "Berline", "doors": 5, "gearbox": gearbox},
+        "vehicle": {**chosen, "year": year, "fuel": fuel, "body": "Berline", "doors": 5, "gearbox": gearbox, "speedNumber": speedNumber, "dateRelease": f"{year}-{month:02d}-15", "km": km},
+        "versions": versions,
     }
 
 
