@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Response, Query
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Response, Query, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -82,6 +82,8 @@ class LeadSaveRequest(BaseModel):
     photos: List[str] = []
     utm: Dict[str, str] = {}
     source: str = "website"
+    # Extended tracking (legacy: gclid, gbraid, hsa_*, landing_page, referrer)
+    tracking: Dict[str, str] = {}
 
 class RangeCreate(BaseModel):
     start_value: float
@@ -121,10 +123,33 @@ async def autobiz_quote(req: QuoteRequest):
 # ── LEADS ROUTES ────────────────────────────────────────────────────
 
 @api_router.post("/leads/save")
-async def save_lead(lead: LeadSaveRequest):
-    """Save a complete lead to database, optionally push to HubSpot/webhook."""
+async def save_lead(lead: LeadSaveRequest, request: Request):
+    """
+    Save a complete lead to database.
+    Legacy flow: save → compute price server-side → HubSpot → webhook → return pricing.
+    """
     lead_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+
+    # ── Server-side pricing (if drivable, compute price from Autobiz + ranges) ──
+    final_pricing = lead.pricing  # Default from client (if quote was already done)
+    if lead.is_drivable:
+        # If pricing not already computed or base_price not present, compute now
+        if not final_pricing.get("base_price"):
+            quotation = await autobiz_service.get_quotation(lead.vehicle, lead.mileage)
+            base_price = quotation.get("base_price", 0)
+            final_pricing = await pricing_service.calculate_final_price(db, base_price)
+    else:
+        # Non-drivable: no price
+        final_pricing = {"base_price": 0, "range_price": None, "discount_price": None, "final_price": 0, "discount_percent": 0, "range_used": None}
+
+    price = final_pricing.get("final_price", 0)
+
+    # ── Enrich tracking with server-side data (legacy: user_agent, ip, referrer) ──
+    tracking = {**lead.utm, **lead.tracking}
+    tracking["user_agent"] = request.headers.get("user-agent", "")
+    tracking["ip"] = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or request.client.host if request.client else ""
+    tracking["referrer"] = request.headers.get("referer", "")
 
     doc = {
         "id": lead_id,
@@ -139,9 +164,9 @@ async def save_lead(lead: LeadSaveRequest):
         "service_invoices": lead.service_invoices,
         "imported": lead.imported,
         "client": lead.client,
-        "pricing": lead.pricing,
+        "pricing": final_pricing,
         "photos": lead.photos,
-        "utm": lead.utm,
+        "tracking": tracking,
         "source": lead.source,
         "status": "new",
         "created_at": now,
@@ -152,27 +177,32 @@ async def save_lead(lead: LeadSaveRequest):
     # Save to DB
     await db.car_leads.insert_one(doc)
 
-    # Optional: HubSpot
-    hubspot_result = await hubspot_service.create_contact({
-        "client": lead.client,
-        "vehicle": lead.vehicle,
-        "final_price": lead.pricing.get("final_price", 0),
-    })
-    doc["hubspot"] = hubspot_result
+    # ── HubSpot (optional, behind ENABLE_HUBSPOT) ──
+    hubspot_data = {
+        **doc,
+        "price": price,
+    }
+    hubspot_data.pop("_id", None)
+    hubspot_result = await hubspot_service.create_contact_and_deal(hubspot_data)
 
-    # Optional: Webhook
-    webhook_data = {k: v for k, v in doc.items() if k != "_id"}
-    webhook_result = await webhook_service.send_lead(webhook_data)
-    doc["webhook"] = webhook_result
+    # ── Webhook (optional, behind ENABLE_WEBHOOK) ──
+    webhook_doc = {k: v for k, v in doc.items() if k != "_id"}
+    webhook_result = await webhook_service.send_lead(webhook_doc)
 
-    # Update integrations status
+    # Update integrations status in DB
     await db.car_leads.update_one(
         {"id": lead_id},
         {"$set": {"hubspot": hubspot_result, "webhook": webhook_result}},
     )
 
+    # ── Return legacy-compatible response: inserted_id + pricing breakdown ──
     return {
         "id": lead_id,
+        "inserted_id": lead_id,
+        "price": price,
+        "base_price": final_pricing.get("base_price", 0),
+        "range_price": final_pricing.get("range_price"),
+        "discount_price": final_pricing.get("discount_price"),
         "status": "saved",
         "hubspot": hubspot_result.get("sent", False),
         "webhook": webhook_result.get("sent", False),

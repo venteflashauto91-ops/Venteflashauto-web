@@ -161,17 +161,16 @@ export default function CarSearchPage() {
     setSubmitting(true);
     setError('');
     try {
-      // 1. Get quote if not yet done (drivable=yes only)
-      let finalPricing = pricing;
-      if (!finalPricing && drivable === 'yes') {
-        const quoteResult = await getQuotation({ ...values, plate }, parseInt(values.km) || 0);
-        finalPricing = quoteResult.pricing;
-        setPricing(finalPricing);
-      }
+      // 1. Collect extended tracking (legacy: gclid, gbraid, hsa_*, landing_page, referrer)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tracking = {};
+      ['gclid', 'gbraid', 'gad_source', 'gad_campaignid',
+       'hsa_acc', 'hsa_cam', 'hsa_grp', 'hsa_ad', 'hsa_src', 'hsa_kw', 'hsa_mt', 'hsa_tgt', 'hsa_net',
+      ].forEach(key => { const v = urlParams.get(key); if (v) tracking[key] = v; });
+      tracking.landing_page = window.location.href;
+      tracking.referrer = document.referrer || '';
 
-      const finalPrice = finalPricing?.final_price || 0;
-
-      // 2. Save lead BEFORE redirect — abort if fails
+      // 2. Save lead BEFORE redirect — server computes final price
       const saveResult = await saveLead({
         plate,
         vehicle: values,
@@ -184,9 +183,10 @@ export default function CarSearchPage() {
         service_invoices: boolAnswers.maintenanceInvoices === 'yes',
         imported: boolAnswers.imported === 'yes',
         client,
-        pricing: finalPricing || {},
+        pricing: pricing || {},
         photos,
         utm: getMergedUtm(),
+        tracking,
         source: 'website',
       });
 
@@ -194,11 +194,14 @@ export default function CarSearchPage() {
         throw new Error('Sauvegarde echouee');
       }
 
-      // 3. GTM dataLayer event (only after successful save)
+      // 3. Use SERVER price (not client-side) for redirect
+      const serverPrice = saveResult.price || 0;
+
+      // 4. GTM dataLayer event (only after successful save)
       window.dataLayer = window.dataLayer || [];
       window.dataLayer.push({
         event: 'custom_price_simulation',
-        value: finalPrice,
+        value: serverPrice,
         currency: 'EUR',
         item_name: `${values.make} ${values.model}`,
         transaction_id: `TX_${Date.now()}`,
@@ -206,17 +209,17 @@ export default function CarSearchPage() {
 
       trackEvent('lead_submitted', { plate, make: values.make, inserted_id: saveResult.id });
 
-      // 4. Build redirect URL with query params (legacy-compatible)
+      // 5. Build redirect URL with query params (legacy-compatible)
       const versionId = values.version ? values.version.split(':')[0].trim() : '';
       const resultParams = new URLSearchParams();
       resultParams.set('reg', String(values.year || ''));
       resultParams.set('km', String(values.km || ''));
       resultParams.set('version', versionId);
       resultParams.set('drivable', drivable);
-      resultParams.set('inserted_id', saveResult.id);
+      resultParams.set('inserted_id', saveResult.inserted_id || saveResult.id);
       resultParams.set('car', `${values.make} ${values.model}`);
       resultParams.set('car_number', plate);
-      resultParams.set('price', String(finalPrice));
+      resultParams.set('price', String(serverPrice));
 
       // Preserve UTM params
       const utm = getMergedUtm();
@@ -224,7 +227,7 @@ export default function CarSearchPage() {
         if (v) resultParams.set(k, v);
       });
 
-      // 5. Redirect: drivable=no → car-estimation-page-2, else → result-page
+      // 6. Redirect: drivable=no → car-estimation-page-2, else → result-page
       const targetPath = drivable === 'no' ? '/car-estimation-page-2' : '/result-page';
       window.location.href = `${window.location.origin}${targetPath}?${resultParams.toString()}`;
 

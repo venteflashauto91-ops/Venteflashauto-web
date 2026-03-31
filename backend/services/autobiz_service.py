@@ -1,9 +1,14 @@
 """
 Autobiz API Service - Backend Only
 All Autobiz calls are made server-side. No credentials are ever exposed to the frontend.
+
+Real API: https://apiv2.autobiz.com
+Quotation endpoint: /quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation
+Auth: Bearer token from /auth/login
 """
 import os
 import logging
+import asyncio
 import httpx
 from typing import Optional
 
@@ -13,6 +18,9 @@ AUTOBIZ_USERNAME = os.environ.get("AUTOBIZ_USERNAME", "")
 AUTOBIZ_PASSWORD = os.environ.get("AUTOBIZ_PASSWORD", "")
 AUTOBIZ_BASE_URL = os.environ.get("AUTOBIZ_BASE_URL", "")
 AUTOBIZ_MARKET_VALUE = os.environ.get("AUTOBIZ_MARKET_VALUE", "tradeIn")
+
+MAX_RETRIES = 5
+RETRY_DELAY = 2
 
 # ── Mock data (used when credentials are not configured) ─────────────
 
@@ -96,6 +104,7 @@ async def identify_vehicle(plate: str) -> dict:
                     "found": True,
                     "source": "autobiz",
                     "vehicle": _normalize_autobiz_vehicle(data),
+                    "versions": _extract_versions(data),
                     "raw": data,
                 }
         except Exception as e:
@@ -109,38 +118,91 @@ async def identify_vehicle(plate: str) -> dict:
 async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
     """
     Get a price quotation from Autobiz.
+    Real API: GET /quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation
+    Retry: up to MAX_RETRIES times with RETRY_DELAY seconds between attempts.
     Falls back to mock if not configured.
     """
     if is_configured():
-        try:
-            token = await _get_auth_token()
-            if not token:
-                raise Exception("Auth failed")
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    f"{AUTOBIZ_BASE_URL}/vehicle/quote",
-                    json={
-                        "vehicle": vehicle_data,
-                        "mileage": mileage,
-                        "marketValue": AUTOBIZ_MARKET_VALUE,
-                    },
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                base_price = _extract_price(data)
-                return {
-                    "source": "autobiz",
-                    "base_price": base_price,
-                    "market_value_type": AUTOBIZ_MARKET_VALUE,
-                    "raw": data,
-                }
-        except Exception as e:
-            logger.error(f"Autobiz quotation failed: {e}")
-            return {"source": "autobiz", "base_price": 0, "error": str(e)}
+        token = await _get_auth_token()
+        if not token:
+            logger.error("Autobiz auth failed for quotation")
+            return {"source": "autobiz", "base_price": 0, "error": "Auth failed"}
+
+        # Extract version ID (format: "id: name" → take before colon)
+        version_raw = vehicle_data.get("version", "")
+        version_id = version_raw.split(":")[0].strip() if ":" in str(version_raw) else str(version_raw).strip()
+        year = int(vehicle_data.get("year", 0))
+
+        if not version_id or not year:
+            return {"source": "autobiz", "base_price": 0, "error": "Missing version_id or year"}
+
+        # Build Autobiz quotation URL (matches legacy PHP endpoint)
+        url = f"{AUTOBIZ_BASE_URL}/quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation"
+
+        # Retry logic (legacy: up to 5 attempts, 2s delay)
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(
+                        url,
+                        headers={"Authorization": f"Bearer {token}"},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        base_price = _extract_price_from_quotation(data)
+                        return {
+                            "source": "autobiz",
+                            "base_price": base_price,
+                            "market_value_type": AUTOBIZ_MARKET_VALUE,
+                            "raw": data,
+                        }
+                    else:
+                        logger.warning(f"Autobiz quotation attempt {attempt}/{MAX_RETRIES} returned {resp.status_code}")
+            except Exception as e:
+                logger.warning(f"Autobiz quotation attempt {attempt}/{MAX_RETRIES} failed: {e}")
+
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY)
+
+        return {"source": "autobiz", "base_price": 0, "error": "Max retries exceeded"}
 
     # Mock fallback
     return _mock_quotation(vehicle_data, mileage)
+
+
+def _extract_price_from_quotation(data: dict) -> float:
+    """
+    Extract base_price from Autobiz quotation response.
+    Legacy logic: data['_quotation'][AUTOBIZ_MARKET_VALUE]
+    """
+    if not isinstance(data, dict):
+        return 0.0
+
+    # Primary: legacy path _quotation[market_value_key]
+    quotation = data.get("_quotation", {})
+    if isinstance(quotation, dict):
+        val = quotation.get(AUTOBIZ_MARKET_VALUE)
+        if isinstance(val, (int, float)):
+            return float(val)
+
+    # Fallback: try direct keys
+    for key in [AUTOBIZ_MARKET_VALUE, "price", "tradeIn", "b2cMarketValue", "value", "estimation"]:
+        if key in data:
+            val = data[key]
+            if isinstance(val, (int, float)):
+                return float(val)
+            if isinstance(val, dict) and "value" in val:
+                return float(val["value"])
+
+    return 0.0
+
+
+def _extract_versions(data: dict) -> list:
+    """Extract version list from Autobiz identify response."""
+    versions = data.get("versions", [])
+    if isinstance(versions, list):
+        return [{"id": str(v.get("id", "")), "name": v.get("name", v.get("label", ""))} for v in versions]
+    return []
 
 
 def _normalize_autobiz_vehicle(data: dict) -> dict:
@@ -156,21 +218,12 @@ def _normalize_autobiz_vehicle(data: dict) -> dict:
         "gearbox": data.get("gearbox", data.get("boite", "")),
         "power": data.get("power", data.get("puissance", 0)),
         "engineSize": data.get("engineSize", data.get("cylindree", "")),
+        "dateRelease": data.get("dateRelease", ""),
+        "km": data.get("km", 0),
     }
 
 
-def _extract_price(data: dict) -> float:
-    """Extract price from Autobiz quotation response."""
-    if isinstance(data, dict):
-        for key in ["price", "tradeIn", "value", "estimation", AUTOBIZ_MARKET_VALUE]:
-            if key in data:
-                val = data[key]
-                if isinstance(val, (int, float)):
-                    return float(val)
-                if isinstance(val, dict) and "value" in val:
-                    return float(val["value"])
-    return 0.0
-
+# ── Mock implementations ─────────────────────────────────────────────
 
 def _mock_identify(plate: str) -> dict:
     """Mock vehicle identification with versions."""

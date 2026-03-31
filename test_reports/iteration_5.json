@@ -1,0 +1,80 @@
+{
+  "summary": "Completed comprehensive testing of legacy WordPress plugin migration to FastAPI. All 30 backend tests passed (100%). All frontend flows working correctly. Key features verified: server-side pricing computation, tracking enrichment with user_agent/ip, legacy-compatible response format (inserted_id, price, base_price, range_price, discount_price), HubSpot/webhook disabled returns sent=false, UTM/gclid preservation in redirects.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "BACKEND: POST /api/leads/save with drivable=true returns inserted_id, price (>0), base_price, range_price, status - PASSED",
+    "BACKEND: POST /api/leads/save with drivable=false returns price=0, base_price=0, range_price=null, discount_price=null - PASSED",
+    "BACKEND: POST /api/leads/save enriches tracking with server-side user_agent and ip - PASSED",
+    "BACKEND: POST /api/leads/save stores tracking data (gclid, utm_source, etc.) in DB - PASSED",
+    "BACKEND: POST /api/leads/save pricing stored in DB has base_price, range_price, discount_price, final_price, discount_percent, range_used - PASSED",
+    "BACKEND: POST /api/autobiz/quote returns pricing with base_price, range_price, discount_price, final_price - PASSED",
+    "BACKEND: GET /api/leads returns leads with 'tracking' field (not just 'utm') - PASSED",
+    "BACKEND: HubSpot and webhook return sent=false when disabled (ENABLE_HUBSPOT=false, ENABLE_WEBHOOK=false) - PASSED",
+    "BACKEND: Pricing range logic: range 3000-5000 has -20% discount - VERIFIED",
+    "BACKEND: Pricing range logic: range 10000-20000 has -12% discount - VERIFIED",
+    "BACKEND: Pricing calculation: final_price = base_price + (base_price * discount_percent / 100) - VERIFIED",
+    "BACKEND: All 20 original API tests passed - PASSED",
+    "FRONTEND FLOW - Drivable=yes: plate → version → drivable oui → booleans → estimation preview → contact → submit → redirect to /result-page with CORRECT server price in URL - PASSED",
+    "FRONTEND FLOW - Drivable=no: plate → version → drivable non → reason → contact → submit → redirect to /car-estimation-page-2 with price=0 - PASSED",
+    "RESULT PAGE: Direct URL with query params shows correct price and vehicle info (refresh works) - PASSED",
+    "CAR-ESTIMATION-PAGE-2: Direct URL with drivable=no shows non-drivable message - PASSED",
+    "UTM PRESERVATION: utm_source + utm_medium from car-search URL appear in redirect URL - PASSED",
+    "TRACKING: gclid from car-search URL is passed through to saved lead - PASSED"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_api.py",
+    "/app/backend/tests/test_legacy_migration.py",
+    "/app/test_reports/pytest/pytest_results_iter5.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_legacy_migration.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (30/30 tests passed)",
+    "frontend": "100% (all flows working)"
+  },
+
+  "seed_data_creation": "Test leads created during testing with various tracking data (gclid, utm_source, utm_medium). Backend auto-seeds 6 default price ranges on startup.",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "Legacy migration testing complete. Key verified features: 1) Server computes final price during saveLead (not frontend), 2) Response includes inserted_id + price + base_price + range_price + discount_price, 3) Tracking field added to lead model (replaces simple utm field), enriched with server-side user_agent/ip, 4) HubSpot/webhook return sent=false when disabled, 5) Pricing ranges: 0-3000(-25%), 3000-5000(-20%), 5000-10000(-15%), 10000-20000(-12%), 20000-50000(-10%), 50000-200000(-8%). Mock plates: AA123BB (Peugeot 208), CC456DD (Renault Clio V). Backend URL: https://car-buyback-1.preview.emergentagent.com",
+
+  "mocked_apis": {
+    "autobiz_service.py": "Vehicle identification and quotation fully mocked - returns predefined vehicles for known plates, random vehicles for unknown plates",
+    "hubspot_service.py": "Disabled (ENABLE_HUBSPOT=false) - returns sent=false",
+    "webhook_service.py": "Disabled (ENABLE_WEBHOOK=false) - returns sent=false"
+  },
+
+  "verified_legacy_migration_features": {
+    "server_side_pricing": "VERIFIED - Server computes final price from Autobiz base_price + range discount",
+    "legacy_response_format": "VERIFIED - Returns inserted_id, price, base_price, range_price, discount_price, status",
+    "tracking_enrichment": "VERIFIED - Server adds user_agent, ip, referrer to tracking data",
+    "tracking_field_in_db": "VERIFIED - Leads have 'tracking' field with merged utm + tracking + server data",
+    "hubspot_disabled": "VERIFIED - Returns sent=false when ENABLE_HUBSPOT=false",
+    "webhook_disabled": "VERIFIED - Returns sent=false when ENABLE_WEBHOOK=false",
+    "pricing_range_logic": "VERIFIED - Ranges correctly apply percentage discounts",
+    "utm_preservation": "VERIFIED - UTM params preserved in redirect URLs",
+    "gclid_tracking": "VERIFIED - gclid passed through to saved lead"
+  }
+}
