@@ -135,12 +135,62 @@ async def _get_auth_token() -> Optional[str]:
 async def identify_vehicle(plate: str) -> dict:
     """
     Identify a vehicle by license plate.
-    NOTE: Autobiz API does NOT have a plate identification endpoint.
-    In the legacy site, identification was done client-side by the Autobiz widget (cap-script.js).
-    Our backend uses mock data for identification. Real Autobiz integration is only for quotation.
-    A future integration with a SIV (Systeme d'Immatriculation des Vehicules) API could replace this.
+    Real API: GET {base_url}/referential/v1/car-details/registration/{plate}/FR
+    Returns vehicle details + list of versions with real Autobiz IDs for quotation.
+    Falls back to mock data if not configured or on error.
     """
     clean_plate = plate.upper().replace("-", "").replace(" ", "")
+
+    cfg = await _get_dynamic_config()
+    if cfg["configured"]:
+        try:
+            token = await _get_auth_token()
+            if not token:
+                logger.warning("Autobiz auth failed for identify, falling back to mock")
+                return _mock_identify(clean_plate)
+
+            identify_url = f"{cfg['base_url']}/referential/v1/car-details/registration/{clean_plate}/FR"
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(identify_url, headers={"Authorization": f"Bearer {token}"})
+                logger.info(f"Autobiz identify: plate={clean_plate} | status={resp.status_code}")
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    vehicle = {
+                        "make": data.get("makeName", ""),
+                        "model": data.get("modelName", ""),
+                        "year": int(str(data.get("dateRelease", ""))[:4]) if data.get("dateRelease") else 0,
+                        "fuel": data.get("fuelName", ""),
+                        "body": data.get("bodyName", ""),
+                        "doors": data.get("doors", 0),
+                        "gearbox": data.get("gearboxName", ""),
+                        "power": data.get("engine", 0),
+                        "engineSize": str(data.get("liter", "")),
+                        "speedNumber": data.get("speedNumber", 0),
+                        "dateRelease": data.get("dateRelease", ""),
+                        "km": 0,
+                        "makeId": data.get("makeId"),
+                        "modelId": data.get("modelId"),
+                        "bodyId": data.get("bodyId"),
+                        "fuelId": data.get("fuelId"),
+                        "gearboxId": data.get("gearboxId"),
+                        "vin": data.get("vin", ""),
+                        "co2": data.get("co2Emissions", 0),
+                        "fiscal": data.get("fiscal", 0),
+                    }
+                    versions = [
+                        {"id": str(v.get("id", "")), "name": v.get("name", "")}
+                        for v in data.get("versions", [])
+                    ]
+                    return {"found": True, "source": "autobiz", "vehicle": vehicle, "versions": versions}
+                else:
+                    logger.warning(f"Autobiz identify: plate not found or error, status={resp.status_code}")
+                    return _mock_identify(clean_plate)
+
+        except Exception as e:
+            logger.error(f"Autobiz identify error: {e}")
+            return _mock_identify(clean_plate)
+
     return _mock_identify(clean_plate)
 
 
