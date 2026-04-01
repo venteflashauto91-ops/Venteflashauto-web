@@ -83,8 +83,12 @@ class LeadSaveRequest(BaseModel):
     photos: List[str] = []
     utm: Dict[str, str] = {}
     source: str = "website"
-    # Extended tracking (legacy: gclid, gbraid, hsa_*, landing_page, referrer)
     tracking: Dict[str, str] = {}
+    # Appointment fields
+    garage_id: Optional[str] = None
+    garage_name: Optional[str] = None
+    appointment_date: Optional[str] = None
+    appointment_time: Optional[str] = None
 
 class RangeCreate(BaseModel):
     start_value: float
@@ -108,6 +112,26 @@ class AdminSettingsUpdate(BaseModel):
     hubspot_api_key: Optional[str] = None
     enable_webhook: Optional[bool] = None
     webhook_url: Optional[str] = None
+
+class GarageCreate(BaseModel):
+    name: str
+    address: str = ""
+    postal_code: str = ""
+    city: str = ""
+    phone: str = ""
+    email: str = ""
+    hours: str = ""
+    active: bool = True
+    display_order: int = 0
+    notes: str = ""
+    zone: str = ""
+
+class AppointmentConfigUpdate(BaseModel):
+    active_days: List[int] = [1, 2, 3, 4, 5]
+    slots: List[str] = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"]
+    slot_duration: int = 60
+    max_per_slot: int = 1
+    disabled_dates: List[str] = []
 
 # ── Admin auth dependency ────────────────────────────────────────────
 
@@ -199,10 +223,38 @@ async def save_lead(lead: LeadSaveRequest, request: Request):
         "created_at": now,
         "hubspot": None,
         "webhook": None,
+        "garage_id": lead.garage_id,
+        "garage_name": lead.garage_name,
+        "appointment_date": lead.appointment_date,
+        "appointment_time": lead.appointment_time,
+        "appointment_status": "scheduled" if lead.appointment_date else None,
     }
 
     # Save to DB
     await db.car_leads.insert_one(doc)
+
+    # ── Book appointment slot (concurrency-safe) ──
+    if lead.garage_id and lead.appointment_date and lead.appointment_time:
+        appt_config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
+        max_per_slot = appt_config.get("max_per_slot", 1) if appt_config else 1
+        existing = await db.appointments.count_documents({
+            "garage_id": lead.garage_id,
+            "date": lead.appointment_date,
+            "time": lead.appointment_time,
+        })
+        if existing >= max_per_slot:
+            # Slot is full — save lead but mark appointment as failed
+            await db.car_leads.update_one({"id": lead_id}, {"$set": {"appointment_status": "slot_full"}})
+        else:
+            await db.appointments.insert_one({
+                "id": str(uuid.uuid4()),
+                "garage_id": lead.garage_id,
+                "date": lead.appointment_date,
+                "time": lead.appointment_time,
+                "lead_id": lead_id,
+                "status": "scheduled",
+                "created_at": now,
+            })
 
     # ── HubSpot (optional, behind ENABLE_HUBSPOT) ──
     hubspot_data = {
@@ -315,21 +367,47 @@ async def serve_file(path: str):
     data, ct = get_object(path)
     return Response(content=data, media_type=record.get("content_type", ct))
 
-# ── CENTERS & APPOINTMENTS ──────────────────────────────────────────
+# ── GARAGES & APPOINTMENTS (public) ──────────────────────────────────
 
-@api_router.get("/centers")
-async def get_centers():
-    return {"centers": [
-        {"id": "paris", "name": "Paris - Nation", "address": "12 Rue de la Roquette, 75011 Paris", "phone": "01 42 00 00 00", "code_postal_prefix": "75"},
-        {"id": "lyon", "name": "Lyon - Part-Dieu", "address": "45 Rue Garibaldi, 69003 Lyon", "phone": "04 72 00 00 00", "code_postal_prefix": "69"},
-        {"id": "marseille", "name": "Marseille - Prado", "address": "88 Avenue du Prado, 13008 Marseille", "phone": "04 91 00 00 00", "code_postal_prefix": "13"},
-        {"id": "toulouse", "name": "Toulouse - Capitole", "address": "22 Allees Jean Jaures, 31000 Toulouse", "phone": "05 61 00 00 00", "code_postal_prefix": "31"},
-        {"id": "bordeaux", "name": "Bordeaux - Meriadeck", "address": "15 Rue du Chateau d'Eau, 33000 Bordeaux", "phone": "05 56 00 00 00", "code_postal_prefix": "33"},
-    ]}
+@api_router.get("/garages")
+async def get_garages(postal_code: str = Query(None)):
+    """Get active garages, optionally sorted by proximity to postal code."""
+    garages = await db.garages.find({"active": True}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    if postal_code and len(postal_code) >= 2:
+        prefix = postal_code[:2]
+        garages.sort(key=lambda g: (0 if g.get("postal_code", "")[:2] == prefix else 1, g.get("display_order", 0)))
+    return {"garages": garages}
 
-@api_router.get("/appointments/slots")
-async def get_appointment_slots(date: str = Query(None)):
-    return {"date": date, "slots": ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"]}
+@api_router.get("/appointments/config")
+async def get_appointment_config():
+    """Get appointment configuration (active days, slots, etc.)."""
+    config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
+    if not config:
+        config = {"key": "global", "active_days": [1, 2, 3, 4, 5], "slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"], "slot_duration": 60, "max_per_slot": 1, "disabled_dates": []}
+    return config
+
+@api_router.get("/appointments/available")
+async def get_available_slots(garage_id: str = Query(...), date: str = Query(...)):
+    """Get available slots for a specific garage and date."""
+    config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
+    if not config:
+        config = {"slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"], "max_per_slot": 1, "disabled_dates": []}
+
+    if date in config.get("disabled_dates", []):
+        return {"date": date, "garage_id": garage_id, "slots": [], "message": "Date non disponible"}
+
+    max_per_slot = config.get("max_per_slot", 1)
+    all_slots = config.get("slots", [])
+
+    # Count existing bookings per slot
+    booked = {}
+    cursor = db.appointments.find({"garage_id": garage_id, "date": date}, {"_id": 0, "time": 1})
+    async for appt in cursor:
+        t = appt["time"]
+        booked[t] = booked.get(t, 0) + 1
+
+    available = [s for s in all_slots if booked.get(s, 0) < max_per_slot]
+    return {"date": date, "garage_id": garage_id, "slots": available, "all_slots": all_slots, "booked": list(booked.keys())}
 
 # ── TRACKING ────────────────────────────────────────────────────────
 
@@ -409,16 +487,75 @@ async def admin_stats(request: Request):
     total_leads = await db.car_leads.count_documents({})
     drivable_leads = await db.car_leads.count_documents({"is_drivable": True})
     non_drivable_leads = await db.car_leads.count_documents({"is_drivable": False})
+    total_garages = await db.garages.count_documents({})
+    total_appointments = await db.appointments.count_documents({})
     cfg = await admin_service.get_settings(db, mask_secrets=True)
     autobiz_ok = bool(cfg.get("autobiz_username") and cfg.get("autobiz_base_url"))
     return {
         "total_leads": total_leads,
         "drivable_leads": drivable_leads,
         "non_drivable_leads": non_drivable_leads,
+        "total_garages": total_garages,
+        "total_appointments": total_appointments,
         "autobiz_configured": autobiz_ok,
         "hubspot_enabled": cfg.get("enable_hubspot", False),
         "webhook_enabled": cfg.get("enable_webhook", False),
     }
+
+# ── Admin Garages CRUD ──
+
+@api_router.get("/admin/garages")
+async def admin_get_garages(request: Request):
+    await require_admin(request)
+    garages = await db.garages.find({}, {"_id": 0}).sort("display_order", 1).to_list(100)
+    return {"garages": garages}
+
+@api_router.post("/admin/garages")
+async def admin_create_garage(g: GarageCreate, request: Request):
+    await require_admin(request)
+    garage_id = str(uuid.uuid4())
+    doc = {"id": garage_id, **g.dict()}
+    await db.garages.insert_one(doc)
+    return {"id": garage_id, "created": True}
+
+@api_router.put("/admin/garages/{garage_id}")
+async def admin_update_garage(garage_id: str, g: GarageCreate, request: Request):
+    await require_admin(request)
+    result = await db.garages.update_one({"id": garage_id}, {"$set": g.dict()})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Garage non trouve")
+    return {"updated": True}
+
+@api_router.delete("/admin/garages/{garage_id}")
+async def admin_delete_garage(garage_id: str, request: Request):
+    await require_admin(request)
+    result = await db.garages.delete_one({"id": garage_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Garage non trouve")
+    return {"deleted": True}
+
+# ── Admin Appointment Config ──
+
+@api_router.get("/admin/appointment-config")
+async def admin_get_appointment_config(request: Request):
+    await require_admin(request)
+    config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
+    if not config:
+        config = {"key": "global", "active_days": [1, 2, 3, 4, 5], "slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"], "slot_duration": 60, "max_per_slot": 1, "disabled_dates": []}
+    return config
+
+@api_router.post("/admin/appointment-config")
+async def admin_update_appointment_config(cfg: AppointmentConfigUpdate, request: Request):
+    await require_admin(request)
+    doc = {"key": "global", **cfg.dict()}
+    await db.appointment_config.update_one({"key": "global"}, {"$set": doc}, upsert=True)
+    return doc
+
+@api_router.get("/admin/appointments")
+async def admin_get_appointments(request: Request, limit: int = 100):
+    await require_admin(request)
+    appointments = await db.appointments.find({}, {"_id": 0}).sort("date", -1).limit(limit).to_list(limit)
+    return {"appointments": appointments, "total": len(appointments)}
 
 @api_router.post("/admin/test-autobiz")
 async def admin_test_autobiz(request: Request):

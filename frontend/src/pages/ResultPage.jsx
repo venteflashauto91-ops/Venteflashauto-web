@@ -1,5 +1,5 @@
 import { useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, Car, Phone, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Car, Phone, ArrowRight, MapPin, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
@@ -12,12 +12,10 @@ export default function ResultPage() {
   const price = parseFloat(searchParams.get('price')) || 0;
   const reg = searchParams.get('reg') || '';
   const km = searchParams.get('km') || '';
-  const drivable = searchParams.get('drivable') || 'yes';
   const insertedId = searchParams.get('inserted_id') || '';
-
-  // Extract firstname from car data is not in URL — use a generic greeting
-  // The legacy script didn't pass firstname in URL params either
-  const firstname = searchParams.get('firstname') || '';
+  const garage = searchParams.get('garage') || '';
+  const rdvDate = searchParams.get('rdv_date') || '';
+  const rdvTime = searchParams.get('rdv_time') || '';
 
   return (
     <div data-testid="result-page" className="min-h-screen bg-[#F3F4F6]">
@@ -63,6 +61,24 @@ export default function ResultPage() {
             </p>
             {carNumber && <p className="text-sm text-gray-400">Immatriculation : {carNumber}</p>}
             {km && <p className="text-sm text-gray-400">{Number(km).toLocaleString('fr-FR')} km</p>}
+          </div>
+        )}
+
+        {/* Appointment confirmation */}
+        {garage && rdvDate && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-md p-6 mb-6 animate-fade-in-up stagger-1" data-testid="result-appointment">
+            <h2 className="font-['Mulish'] text-lg font-bold text-[#2B3A67] mb-3">Votre rendez-vous</h2>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-[#2B3A67]">
+                <MapPin className="w-4 h-4 text-[#ff4605] shrink-0" />
+                <span className="font-bold">{garage}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[#2B3A67]">
+                <Calendar className="w-4 h-4 text-[#ff4605] shrink-0" />
+                <span>{new Date(rdvDate + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                {rdvTime && <span className="font-bold">{rdvTime}</span>}
+              </div>
+            </div>
           </div>
         )}
 

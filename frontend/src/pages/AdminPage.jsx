@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -62,10 +62,12 @@ function AdminPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-1 mb-6 bg-[#1a1d2e] rounded-lg p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-[#1a1d2e] rounded-lg p-1 w-fit flex-wrap">
           {[
             { id: 'settings', label: 'Configuration', icon: Settings },
             { id: 'ranges', label: 'Fourchettes', icon: BarChart3 },
+            { id: 'garages', label: 'Garages', icon: MapPin },
+            { id: 'appointments', label: 'RDV', icon: Calendar },
             { id: 'leads', label: 'Leads', icon: Users },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)} data-testid={`tab-${id}`}
@@ -77,6 +79,8 @@ function AdminPage() {
 
         {tab === 'settings' && <SettingsTab authHeaders={authHeaders} />}
         {tab === 'ranges' && <RangesTab authHeaders={authHeaders} />}
+        {tab === 'garages' && <GaragesTab authHeaders={authHeaders} />}
+        {tab === 'appointments' && <AppointmentsTab authHeaders={authHeaders} />}
         {tab === 'leads' && <LeadsTab authHeaders={authHeaders} />}
       </div>
     </div>
@@ -307,6 +311,163 @@ function RangesTab({ authHeaders }) {
           </Button>
         </div>
       </Section>
+    </div>
+  );
+}
+
+/* ── Garages Tab ── */
+function GaragesTab({ authHeaders }) {
+  const [garages, setGarages] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', address: '', postal_code: '', city: '', phone: '', email: '', hours: '', active: true, display_order: 0, notes: '', zone: '' });
+
+  const load = useCallback(async () => {
+    const r = await fetch(`${API}/api/admin/garages`, { headers: authHeaders });
+    if (r.ok) { const d = await r.json(); setGarages(d.garages); }
+  }, [authHeaders]);
+  useEffect(() => { load(); }, [load]);
+
+  const resetForm = () => { setForm({ name: '', address: '', postal_code: '', city: '', phone: '', email: '', hours: '', active: true, display_order: 0, notes: '', zone: '' }); setEditing(null); };
+
+  const save = async () => {
+    if (!form.name) return;
+    if (editing) {
+      await fetch(`${API}/api/admin/garages/${editing}`, { method: 'PUT', headers: authHeaders, body: JSON.stringify(form) });
+    } else {
+      await fetch(`${API}/api/admin/garages`, { method: 'POST', headers: authHeaders, body: JSON.stringify(form) });
+    }
+    resetForm(); load();
+  };
+
+  const del = async (id) => { await fetch(`${API}/api/admin/garages/${id}`, { method: 'DELETE', headers: authHeaders }); load(); };
+  const edit = (g) => { setEditing(g.id); setForm({ name: g.name, address: g.address, postal_code: g.postal_code, city: g.city, phone: g.phone, email: g.email, hours: g.hours, active: g.active, display_order: g.display_order, notes: g.notes || '', zone: g.zone || '' }); };
+  const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <Section title={editing ? 'Modifier le garage' : 'Ajouter un garage'} desc="Garages partenaires affiches aux clients apres l'estimation">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label className="text-xs text-gray-500 mb-1 block">Nom *</label><Input data-testid="garage-name" value={form.name} onChange={e => upd('name', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Adresse</label><Input data-testid="garage-address" value={form.address} onChange={e => upd('address', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Code postal</label><Input data-testid="garage-postal" value={form.postal_code} onChange={e => upd('postal_code', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" maxLength={5} /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Ville</label><Input data-testid="garage-city" value={form.city} onChange={e => upd('city', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Telephone</label><Input data-testid="garage-phone" value={form.phone} onChange={e => upd('phone', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><Input data-testid="garage-email" value={form.email} onChange={e => upd('email', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Horaires</label><Input data-testid="garage-hours" value={form.hours} onChange={e => upd('hours', e.target.value)} placeholder="Lun-Ven 9h-18h" className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Ordre affichage</label><Input data-testid="garage-order" type="number" value={form.display_order} onChange={e => upd('display_order', parseInt(e.target.value) || 0)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div className="md:col-span-2"><label className="text-xs text-gray-500 mb-1 block">Notes</label><Input data-testid="garage-notes" value={form.notes} onChange={e => upd('notes', e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+        </div>
+        <div className="flex items-center gap-4 mt-4">
+          <label className="text-sm text-gray-300 flex items-center gap-2">
+            <input type="checkbox" checked={form.active} onChange={e => upd('active', e.target.checked)} className="rounded" /> Actif
+          </label>
+          <Button onClick={save} data-testid="save-garage-btn" className="bg-[#ff4605] hover:bg-[#e63e00] text-white rounded-lg px-5 h-9"><Save className="w-4 h-4 mr-1" /> {editing ? 'Mettre a jour' : 'Ajouter'}</Button>
+          {editing && <Button onClick={resetForm} variant="ghost" className="text-gray-400 h-9">Annuler</Button>}
+        </div>
+      </Section>
+
+      <Section title="Garages existants" desc={`${garages.length} garage(s)`}>
+        <div className="space-y-2">
+          {garages.map(g => (
+            <div key={g.id} data-testid={`admin-garage-${g.id}`} className={`flex items-center gap-3 p-3 rounded-lg border ${g.active ? 'border-white/5 bg-[#0f1117]' : 'border-red-500/20 bg-red-500/5'}`}>
+              <div className={`w-2 h-2 rounded-full shrink-0 ${g.active ? 'bg-green-400' : 'bg-red-400'}`} />
+              <div className="flex-1 min-w-0">
+                <span className="text-white text-sm font-medium">{g.name}</span>
+                <span className="text-gray-500 text-xs ml-2">{g.postal_code} {g.city}</span>
+              </div>
+              <span className="text-xs text-gray-500">{g.phone}</span>
+              <span className="text-xs text-gray-600">#{g.display_order}</span>
+              <button onClick={() => edit(g)} className="text-gray-500 hover:text-white"><Edit2 className="w-3.5 h-3.5" /></button>
+              <button onClick={() => del(g.id)} className="text-gray-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+          {garages.length === 0 && <p className="text-gray-500 text-sm text-center py-4">Aucun garage</p>}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ── Appointments Config Tab ── */
+function AppointmentsTab({ authHeaders }) {
+  const [config, setConfig] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [newSlot, setNewSlot] = useState('');
+  const [newDisabledDate, setNewDisabledDate] = useState('');
+
+  const load = useCallback(async () => {
+    const r = await fetch(`${API}/api/admin/appointment-config`, { headers: authHeaders });
+    if (r.ok) setConfig(await r.json());
+  }, [authHeaders]);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async () => {
+    setSaving(true); setMsg('');
+    const r = await fetch(`${API}/api/admin/appointment-config`, { method: 'POST', headers: authHeaders, body: JSON.stringify(config) });
+    setMsg(r.ok ? 'Sauvegarde' : 'Erreur');
+    setSaving(false); setTimeout(() => setMsg(''), 3000);
+  };
+
+  if (!config) return <div className="text-gray-400">Chargement...</div>;
+
+  const DAYS = [{ id: 1, name: 'Lun' }, { id: 2, name: 'Mar' }, { id: 3, name: 'Mer' }, { id: 4, name: 'Jeu' }, { id: 5, name: 'Ven' }, { id: 6, name: 'Sam' }, { id: 7, name: 'Dim' }];
+  const toggleDay = (d) => setConfig(c => ({ ...c, active_days: c.active_days.includes(d) ? c.active_days.filter(x => x !== d) : [...c.active_days, d].sort() }));
+  const addSlot = () => { if (newSlot && !config.slots.includes(newSlot)) { setConfig(c => ({ ...c, slots: [...c.slots, newSlot].sort() })); setNewSlot(''); } };
+  const removeSlot = (s) => setConfig(c => ({ ...c, slots: c.slots.filter(x => x !== s) }));
+  const addDisabled = () => { if (newDisabledDate && !config.disabled_dates.includes(newDisabledDate)) { setConfig(c => ({ ...c, disabled_dates: [...c.disabled_dates, newDisabledDate].sort() })); setNewDisabledDate(''); } };
+  const removeDisabled = (d) => setConfig(c => ({ ...c, disabled_dates: c.disabled_dates.filter(x => x !== d) }));
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <Section title="Jours ouvrables" desc="Jours ou les rendez-vous sont possibles">
+        <div className="flex gap-2">
+          {DAYS.map(d => (
+            <button key={d.id} onClick={() => toggleDay(d.id)} data-testid={`day-${d.id}`}
+              className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${config.active_days.includes(d.id) ? 'bg-[#ff4605] border-[#ff4605] text-white' : 'border-white/10 text-gray-500'}`}>{d.name}</button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Creneaux horaires" desc="Heures disponibles pour les RDV">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {config.slots.map(s => (
+            <span key={s} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#0f1117] border border-white/5 text-sm text-gray-300">
+              {s} <button onClick={() => removeSlot(s)} className="text-gray-500 hover:text-red-400 ml-1"><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input data-testid="new-slot" type="time" value={newSlot} onChange={e => setNewSlot(e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg w-32" />
+          <Button onClick={addSlot} data-testid="add-slot-btn" className="h-9 bg-[#ff4605] hover:bg-[#e63e00] text-white rounded-lg px-4"><Plus className="w-4 h-4" /></Button>
+        </div>
+      </Section>
+
+      <Section title="Parametres" desc="Configuration des creneaux">
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="text-xs text-gray-500 mb-1 block">Duree creneau (min)</label><Input type="number" value={config.slot_duration} onChange={e => setConfig(c => ({ ...c, slot_duration: parseInt(e.target.value) || 60 }))} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Max RDV par creneau</label><Input data-testid="max-per-slot" type="number" value={config.max_per_slot} onChange={e => setConfig(c => ({ ...c, max_per_slot: parseInt(e.target.value) || 1 }))} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg" /></div>
+        </div>
+      </Section>
+
+      <Section title="Dates desactivees" desc="Jours feries, fermetures exceptionnelles">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {(config.disabled_dates || []).map(d => (
+            <span key={d} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+              {d} <button onClick={() => removeDisabled(d)} className="hover:text-red-300 ml-1"><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input data-testid="new-disabled-date" type="date" value={newDisabledDate} onChange={e => setNewDisabledDate(e.target.value)} className="h-9 bg-[#1a1d2e] border-white/10 text-white rounded-lg w-44" />
+          <Button onClick={addDisabled} data-testid="add-disabled-btn" className="h-9 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg px-4"><Plus className="w-4 h-4" /></Button>
+        </div>
+      </Section>
+
+      <div className="flex items-center gap-3">
+        <Button onClick={save} disabled={saving} data-testid="save-appt-config-btn" className="bg-[#ff4605] hover:bg-[#e63e00] text-white font-bold rounded-lg px-6"><Save className="w-4 h-4 mr-2" /> {saving ? 'Sauvegarde...' : 'Sauvegarder'}</Button>
+        {msg && <span className={`text-sm ${msg.includes('Erreur') ? 'text-red-400' : 'text-green-400'}`}>{msg}</span>}
+      </div>
     </div>
   );
 }

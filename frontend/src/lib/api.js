@@ -33,15 +33,21 @@ export async function uploadPhoto(file) {
   return res.data;
 }
 
-// ── Centers & Appointments ─────────────────────────────────────────
+// ── Garages & Appointments ──────────────────────────────────────────
 
-export async function getAppointmentSlots(date) {
-  const res = await axios.get(`${API}/appointments/slots`, { params: { date } });
+export async function getGarages(postalCode) {
+  const params = postalCode ? { postal_code: postalCode } : {};
+  const res = await axios.get(`${API}/garages`, { params });
   return res.data;
 }
 
-export async function getCenters() {
-  const res = await axios.get(`${API}/centers`);
+export async function getAppointmentConfig() {
+  const res = await axios.get(`${API}/appointments/config`);
+  return res.data;
+}
+
+export async function getAvailableSlots(garageId, date) {
+  const res = await axios.get(`${API}/appointments/available`, { params: { garage_id: garageId, date } });
   return res.data;
 }
 
