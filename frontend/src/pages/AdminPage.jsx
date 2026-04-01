@@ -114,6 +114,8 @@ function SettingsTab({ authHeaders }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [showSecrets, setShowSecrets] = useState({});
+  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState(false);
 
   const load = useCallback(async () => {
     const r = await fetch(`${API}/api/admin/settings`, { headers: authHeaders });
@@ -133,6 +135,16 @@ function SettingsTab({ authHeaders }) {
     } catch { setMsg('Erreur reseau'); }
     setSaving(false);
     setTimeout(() => setMsg(''), 3000);
+  };
+
+  const testAutobiz = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const r = await fetch(`${API}/api/admin/test-autobiz`, { method: 'POST', headers: authHeaders });
+      if (r.ok) setTestResult(await r.json());
+      else setTestResult({ success: false, error: 'Erreur serveur' });
+    } catch { setTestResult({ success: false, error: 'Erreur reseau' }); }
+    setTesting(false);
   };
 
   if (!settings) return <div className="text-gray-400">Chargement...</div>;
@@ -172,6 +184,22 @@ function SettingsTab({ authHeaders }) {
           <Field label="Market Value" field="autobiz_market_value" />
           <Field label="Username" field="autobiz_username" secret />
           <Field label="Password" field="autobiz_password" secret />
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <Button onClick={testAutobiz} disabled={testing} data-testid="test-autobiz-btn" variant="outline"
+            className="border-white/10 text-gray-300 hover:text-white hover:border-white/20 rounded-lg px-4 h-9 text-sm">
+            <RefreshCw className={`w-3.5 h-3.5 mr-2 ${testing ? 'animate-spin' : ''}`} />
+            {testing ? 'Test en cours...' : 'Tester la connexion'}
+          </Button>
+          {testResult && (
+            <div data-testid="test-autobiz-result" className={`text-xs px-3 py-1.5 rounded-lg ${testResult.success ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+              {testResult.success
+                ? `Connexion OK (token recu)`
+                : `Echec: ${testResult.response_code || testResult.error || 'Erreur inconnue'}${testResult.response_message ? ` — ${testResult.response_message}` : ''}`
+              }
+              {testResult.status_code && !testResult.success && <span className="ml-2 opacity-60">HTTP {testResult.status_code}</span>}
+            </div>
+          )}
         </div>
       </Section>
 

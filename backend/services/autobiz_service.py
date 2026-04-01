@@ -83,47 +83,64 @@ async def _get_dynamic_config() -> dict:
 
 
 async def _get_auth_token() -> Optional[str]:
-    """Authenticate with Autobiz and return a session token."""
+    """
+    Authenticate with Autobiz API.
+    Endpoint: POST {base_url}/users/v1/auth
+    Credentials sent as request headers (username/password).
+    Response expected: { accessToken: "..." }
+    """
     cfg = await _get_dynamic_config()
     if not cfg["configured"]:
+        logger.warning("Autobiz not configured — missing credentials or base_url")
         return None
+
+    auth_url = f"{cfg['base_url']}/users/v1/auth"
+    masked_user = cfg["username"][:5] + "***" if len(cfg["username"]) > 5 else "***"
+
     try:
         async with httpx.AsyncClient(timeout=30) as client:
+            # Send credentials in headers as per Autobiz API spec
             resp = await client.post(
-                f"{cfg['base_url']}/auth/login",
-                json={"username": cfg["username"], "password": cfg["password"]},
+                auth_url,
+                headers={
+                    "username": cfg["username"],
+                    "password": cfg["password"],
+                },
             )
-            resp.raise_for_status()
+
+            logger.info(f"Autobiz auth: URL={auth_url} | user={masked_user} | status={resp.status_code}")
+
+            if resp.status_code != 200:
+                body_text = resp.text[:1000]
+                logger.error(f"Autobiz auth rejected: status={resp.status_code}")
+                logger.error(f"Autobiz auth response body: {body_text}")
+                return None
+
             data = resp.json()
-            return data.get("token") or data.get("access_token")
+
+            # Autobiz returns accessToken (camelCase)
+            token = data.get("accessToken") or data.get("access_token") or data.get("token")
+            if token:
+                logger.info(f"Autobiz auth success: token={token[:10]}...")
+                return token
+            else:
+                logger.error(f"Autobiz auth: no token in response. Keys: {list(data.keys())}")
+                return None
+
     except Exception as e:
-        logger.error(f"Autobiz auth failed: {e}")
+        logger.error(f"Autobiz auth exception: {e}")
         return None
 
 
 async def identify_vehicle(plate: str) -> dict:
-    """Identify a vehicle by license plate via Autobiz API. Falls back to mock."""
+    """
+    Identify a vehicle by license plate.
+    NOTE: Autobiz API does NOT have a plate identification endpoint.
+    In the legacy site, identification was done client-side by the Autobiz widget (cap-script.js).
+    Our backend uses mock data for identification. Real Autobiz integration is only for quotation.
+    A future integration with a SIV (Systeme d'Immatriculation des Vehicules) API could replace this.
+    """
     clean_plate = plate.upper().replace("-", "").replace(" ", "")
-
-    cfg = await _get_dynamic_config()
-    if cfg["configured"]:
-        try:
-            token = await _get_auth_token()
-            if not token:
-                raise Exception("Auth failed")
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.get(
-                    f"{cfg['base_url']}/vehicle/identify",
-                    params={"plate": clean_plate},
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return {"found": True, "source": "autobiz", "vehicle": _normalize_autobiz_vehicle(data), "versions": _extract_versions(data), "raw": data}
-        except Exception as e:
-            logger.error(f"Autobiz identify failed: {e}")
-            return {"found": False, "source": "autobiz", "error": str(e)}
-
     return _mock_identify(clean_plate)
 
 
@@ -133,8 +150,8 @@ async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
     if cfg["configured"]:
         token = await _get_auth_token()
         if not token:
-            logger.error("Autobiz auth failed for quotation")
-            return {"source": "autobiz", "base_price": 0, "error": "Auth failed"}
+            logger.warning("Autobiz auth failed for quotation, falling back to mock")
+            return _mock_quotation(vehicle_data, mileage)
 
         version_raw = vehicle_data.get("version", "")
         version_id = version_raw.split(":")[0].strip() if ":" in str(version_raw) else str(version_raw).strip()
@@ -145,6 +162,7 @@ async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
 
         url = f"{cfg['base_url']}/quotation/v1/version/{version_id}/year/{year}/mileage/{mileage}/quotation"
         market_value = cfg["market_value"]
+        logger.info(f"Autobiz quotation: URL={url} | market_value={market_value}")
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
@@ -153,6 +171,7 @@ async def get_quotation(vehicle_data: dict, mileage: int) -> dict:
                     if resp.status_code == 200:
                         data = resp.json()
                         base_price = _extract_price_from_quotation(data, market_value)
+                        logger.info(f"Autobiz quotation success: base_price={base_price} (market_value={market_value})")
                         return {"source": "autobiz", "base_price": base_price, "market_value_type": market_value, "raw": data}
                     else:
                         logger.warning(f"Autobiz quotation attempt {attempt}/{MAX_RETRIES} returned {resp.status_code}")

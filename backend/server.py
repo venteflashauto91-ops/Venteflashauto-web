@@ -420,6 +420,38 @@ async def admin_stats(request: Request):
         "webhook_enabled": cfg.get("enable_webhook", False),
     }
 
+@api_router.post("/admin/test-autobiz")
+async def admin_test_autobiz(request: Request):
+    """Test Autobiz connection without exposing secrets."""
+    await require_admin(request)
+    cfg = await autobiz_service._get_dynamic_config()
+    if not cfg["configured"]:
+        return {"success": False, "error": "Autobiz non configure (credentials ou base_url manquants)"}
+
+    masked_user = cfg["username"][:5] + "***" if len(cfg["username"]) > 5 else "***"
+    auth_url = f"{cfg['base_url']}/users/v1/auth"
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                auth_url,
+                headers={"username": cfg["username"], "password": cfg["password"]},
+            )
+            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"raw": resp.text[:300]}
+            # Never return password in response
+            return {
+                "success": resp.status_code == 200,
+                "auth_url": auth_url,
+                "username": masked_user,
+                "status_code": resp.status_code,
+                "response_code": body.get("code", ""),
+                "response_message": body.get("message", ""),
+                "token_received": bool(body.get("accessToken") or body.get("access_token") or body.get("token")),
+            }
+    except Exception as e:
+        return {"success": False, "auth_url": auth_url, "username": masked_user, "error": str(e)}
+
 # ── HEALTH ──────────────────────────────────────────────────────────
 
 @api_router.get("/")
