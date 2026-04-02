@@ -57,6 +57,8 @@ async def get_all_settings(db: AsyncIOMotorDatabase) -> dict:
         "hubspot_api_key": doc.get("hubspot_api_key") or os.environ.get("HUBSPOT_API_KEY", ""),
         "enable_webhook": doc.get("enable_webhook") if doc.get("enable_webhook") is not None else os.environ.get("ENABLE_WEBHOOK", "false").lower() == "true",
         "webhook_url": doc.get("webhook_url") or os.environ.get("WEBHOOK_URL", ""),
+        "enable_webhook_appointment": doc.get("enable_webhook_appointment") if doc.get("enable_webhook_appointment") is not None else os.environ.get("ENABLE_WEBHOOK_APPOINTMENT", "false").lower() == "true",
+        "webhook_appointment_url": doc.get("webhook_appointment_url") or os.environ.get("WEBHOOK_APPOINTMENT_URL", ""),
     }
 
     _cache = {**result, "_ts": now}

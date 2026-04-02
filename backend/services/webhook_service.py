@@ -115,3 +115,58 @@ async def send_lead(lead_doc: dict) -> dict:
     except Exception as e:
         logger.error(f"Webhook send failed: {e}")
         return {"sent": False, "error": str(e)}
+
+
+async def send_appointment_update(appt_data: dict) -> dict:
+    """
+    Send appointment confirmation webhook (optional, behind ENABLE_WEBHOOK_APPOINTMENT).
+    Triggered when lead_status changes from 'estimated' to 'appointment_scheduled'.
+    """
+    if _db is not None:
+        from services.settings_loader import get_all_settings
+        s = await get_all_settings(_db)
+        enabled = s.get("enable_webhook_appointment", False)
+        webhook_url = s.get("webhook_appointment_url") or s.get("webhook_url") or WEBHOOK_URL
+    else:
+        enabled = os.environ.get("ENABLE_WEBHOOK_APPOINTMENT", "false").lower() == "true"
+        webhook_url = os.environ.get("WEBHOOK_APPOINTMENT_URL") or WEBHOOK_URL
+
+    if not enabled or not webhook_url:
+        logger.info("Webhook appointment disabled or not configured, skipping")
+        return {"sent": False, "reason": "disabled"}
+
+    client_info = appt_data.get("client", {})
+    vehicle = appt_data.get("vehicle", {})
+    pricing = appt_data.get("pricing", {})
+
+    payload = {
+        "event": "appointment_scheduled",
+        "lead_id": appt_data.get("lead_id", ""),
+        "lead_status": "appointment_scheduled",
+        "garage_id": appt_data.get("garage_id", ""),
+        "garage_name": appt_data.get("garage_name", ""),
+        "appointment_date": appt_data.get("appointment_date", ""),
+        "appointment_time": appt_data.get("appointment_time", ""),
+        "appointment_datetime": appt_data.get("appointment_datetime", ""),
+        "plate": appt_data.get("plate", ""),
+        "car_brand": vehicle.get("make", ""),
+        "car_model": vehicle.get("model", ""),
+        "estimation": pricing.get("final_price", 0),
+        "email": client_info.get("email", ""),
+        "phone": client_info.get("phone", ""),
+        "postal_code": client_info.get("postal_code", ""),
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                webhook_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            resp.raise_for_status()
+            logger.info(f"Webhook appointment sent: {resp.status_code}")
+            return {"sent": True, "status_code": resp.status_code}
+    except Exception as e:
+        logger.error(f"Webhook appointment send failed: {e}")
+        return {"sent": False, "error": str(e)}

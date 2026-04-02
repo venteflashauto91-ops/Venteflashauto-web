@@ -67,7 +67,7 @@ class QuoteRequest(BaseModel):
     vehicle: Dict[str, Any]
     mileage: int
 
-class LeadSaveRequest(BaseModel):
+class EstimateRequest(BaseModel):
     plate: str = ""
     vehicle: Dict[str, Any] = {}
     mileage: int = 0
@@ -79,16 +79,16 @@ class LeadSaveRequest(BaseModel):
     service_invoices: bool = False
     imported: bool = False
     client: Dict[str, Any] = {}
-    pricing: Dict[str, Any] = {}
     photos: List[str] = []
     utm: Dict[str, str] = {}
     source: str = "website"
     tracking: Dict[str, str] = {}
-    # Appointment fields
-    garage_id: Optional[str] = None
-    garage_name: Optional[str] = None
-    appointment_date: Optional[str] = None
-    appointment_time: Optional[str] = None
+
+class AppointmentBookRequest(BaseModel):
+    garage_id: str
+    garage_name: str
+    appointment_date: str
+    appointment_time: str
 
 class RangeCreate(BaseModel):
     start_value: float
@@ -112,6 +112,8 @@ class AdminSettingsUpdate(BaseModel):
     hubspot_api_key: Optional[str] = None
     enable_webhook: Optional[bool] = None
     webhook_url: Optional[str] = None
+    enable_webhook_appointment: Optional[bool] = None
+    webhook_appointment_url: Optional[str] = None
 
 class GarageCreate(BaseModel):
     name: str
@@ -136,7 +138,6 @@ class AppointmentConfigUpdate(BaseModel):
 # ── Admin auth dependency ────────────────────────────────────────────
 
 async def require_admin(request: Request):
-    """Verify admin JWT token from Authorization header."""
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(401, "Token manquant")
@@ -149,21 +150,17 @@ async def require_admin(request: Request):
 
 @api_router.post("/autobiz/identify")
 async def autobiz_identify(req: IdentifyRequest):
-    """Identify vehicle via Autobiz. All credentials stay server-side."""
     result = await autobiz_service.identify_vehicle(req.plate)
     if not result.get("found"):
         raise HTTPException(404, detail=result.get("error", "Vehicule non trouve"))
-    # Strip raw Autobiz response from client output
     result.pop("raw", None)
     return result
 
 @api_router.post("/autobiz/quote")
 async def autobiz_quote(req: QuoteRequest):
-    """Get price quotation from Autobiz + apply range pricing."""
     quotation = await autobiz_service.get_quotation(req.vehicle, req.mileage)
     base_price = quotation.get("base_price", 0)
     pricing = await pricing_service.calculate_final_price(db, base_price)
-    # Strip raw
     quotation.pop("raw", None)
     return {
         "quotation": quotation,
@@ -173,119 +170,240 @@ async def autobiz_quote(req: QuoteRequest):
 
 # ── LEADS ROUTES ────────────────────────────────────────────────────
 
-@api_router.post("/leads/save")
-async def save_lead(lead: LeadSaveRequest, request: Request):
+@api_router.post("/leads/estimate")
+async def estimate_lead(req: EstimateRequest, request: Request):
     """
-    Save a complete lead to database.
-    Legacy flow: save → compute price server-side → HubSpot → webhook → return pricing.
+    New funnel endpoint:
+    1. Compute price server-side
+    2. Save lead with lead_status=estimated
+    3. Send webhook N8N (non-blocking on failure)
+    4. Return lead_id + price
     """
     lead_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
-    # ── Server-side pricing (if drivable, compute price from Autobiz + ranges) ──
-    final_pricing = lead.pricing  # Default from client (if quote was already done)
-    if lead.is_drivable:
-        # If pricing not already computed or base_price not present, compute now
-        if not final_pricing.get("base_price"):
-            quotation = await autobiz_service.get_quotation(lead.vehicle, lead.mileage)
-            base_price = quotation.get("base_price", 0)
-            final_pricing = await pricing_service.calculate_final_price(db, base_price)
+    # ── Server-side pricing ──
+    if req.is_drivable:
+        quotation = await autobiz_service.get_quotation(req.vehicle, req.mileage)
+        base_price = quotation.get("base_price", 0)
+        final_pricing = await pricing_service.calculate_final_price(db, base_price)
     else:
-        # Non-drivable: no price
         final_pricing = {"base_price": 0, "range_price": None, "discount_price": None, "final_price": 0, "discount_percent": 0, "range_used": None}
 
     price = final_pricing.get("final_price", 0)
 
-    # ── Enrich tracking with server-side data (legacy: user_agent, ip, referrer) ──
-    tracking = {**lead.utm, **lead.tracking}
+    # ── Enrich tracking ──
+    tracking = {**req.utm, **req.tracking}
     tracking["user_agent"] = request.headers.get("user-agent", "")
-    tracking["ip"] = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or request.client.host if request.client else ""
+    tracking["ip"] = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
     tracking["referrer"] = request.headers.get("referer", "")
+
+    # ── Build photo URLs for webhook ──
+    backend_url = os.environ.get("REACT_APP_BACKEND_URL", request.base_url.scheme + "://" + request.headers.get("host", ""))
+    photo_urls = [f"{backend_url}/api/files/{p}" for p in req.photos] if req.photos else []
 
     doc = {
         "id": lead_id,
-        "plate": lead.plate,
-        "vehicle": lead.vehicle,
-        "mileage": lead.mileage,
-        "is_drivable": lead.is_drivable,
-        "condition": lead.condition,
-        "defects": lead.defects,
-        "first_owner": lead.first_owner,
-        "service_book": lead.service_book,
-        "service_invoices": lead.service_invoices,
-        "imported": lead.imported,
-        "client": lead.client,
+        "plate": req.plate,
+        "vehicle": req.vehicle,
+        "mileage": req.mileage,
+        "is_drivable": req.is_drivable,
+        "condition": req.condition,
+        "defects": req.defects,
+        "first_owner": req.first_owner,
+        "service_book": req.service_book,
+        "service_invoices": req.service_invoices,
+        "imported": req.imported,
+        "client": req.client,
         "pricing": final_pricing,
-        "photos": lead.photos,
+        "photos": req.photos,
+        "photo_urls": photo_urls,
         "tracking": tracking,
-        "source": lead.source,
-        "status": "new",
-        "created_at": now,
+        "source": req.source,
+        "lead_status": "estimated",
+        "garage_id": None,
+        "garage_name": None,
+        "appointment_date": None,
+        "appointment_time": None,
+        "appointment_datetime": None,
+        "appointment_status": None,
+        "webhook_estimation": None,
+        "webhook_appointment": None,
         "hubspot": None,
-        "webhook": None,
-        "garage_id": lead.garage_id,
-        "garage_name": lead.garage_name,
-        "appointment_date": lead.appointment_date,
-        "appointment_time": lead.appointment_time,
-        "appointment_status": "scheduled" if lead.appointment_date else None,
+        "created_at": now,
+        "updated_at": now,
     }
 
-    # Save to DB
+    # ── 1. Save to DB FIRST ──
     await db.car_leads.insert_one(doc)
+    logger.info(f"Lead saved: {lead_id} (status=estimated, drivable={req.is_drivable})")
 
-    # ── Book appointment slot (concurrency-safe) ──
-    if lead.garage_id and lead.appointment_date and lead.appointment_time:
-        appt_config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
-        max_per_slot = appt_config.get("max_per_slot", 1) if appt_config else 1
-        existing = await db.appointments.count_documents({
-            "garage_id": lead.garage_id,
-            "date": lead.appointment_date,
-            "time": lead.appointment_time,
-        })
-        if existing >= max_per_slot:
-            # Slot is full — save lead but mark appointment as failed
-            await db.car_leads.update_one({"id": lead_id}, {"$set": {"appointment_status": "slot_full"}})
-        else:
-            await db.appointments.insert_one({
-                "id": str(uuid.uuid4()),
-                "garage_id": lead.garage_id,
-                "date": lead.appointment_date,
-                "time": lead.appointment_time,
-                "lead_id": lead_id,
-                "status": "scheduled",
-                "created_at": now,
-            })
+    # ── 2. Webhook N8N (non-blocking on failure) ──
+    webhook_result = {"sent": False, "reason": "not_attempted"}
+    try:
+        webhook_doc = {k: v for k, v in doc.items() if k != "_id"}
+        webhook_result = await webhook_service.send_lead(webhook_doc)
+    except Exception as e:
+        logger.error(f"Webhook estimation failed: {e}")
+        webhook_result = {"sent": False, "error": str(e)}
 
-    # ── HubSpot (optional, behind ENABLE_HUBSPOT) ──
-    hubspot_data = {
-        **doc,
-        "price": price,
-    }
-    hubspot_data.pop("_id", None)
-    hubspot_result = await hubspot_service.create_contact_and_deal(hubspot_data)
-
-    # ── Webhook (optional, behind ENABLE_WEBHOOK) ──
-    webhook_doc = {k: v for k, v in doc.items() if k != "_id"}
-    webhook_result = await webhook_service.send_lead(webhook_doc)
-
-    # Update integrations status in DB
+    # ── 3. Update webhook result in DB ──
     await db.car_leads.update_one(
         {"id": lead_id},
-        {"$set": {"hubspot": hubspot_result, "webhook": webhook_result}},
+        {"$set": {"webhook_estimation": webhook_result}}
     )
 
-    # ── Return legacy-compatible response: inserted_id + pricing breakdown ──
+    # ── 4. HubSpot (non-blocking) ──
+    hubspot_result = {"sent": False, "reason": "not_attempted"}
+    try:
+        hubspot_data = {**{k: v for k, v in doc.items() if k != "_id"}, "price": price}
+        hubspot_result = await hubspot_service.create_contact_and_deal(hubspot_data)
+    except Exception as e:
+        logger.error(f"HubSpot failed: {e}")
+        hubspot_result = {"sent": False, "error": str(e)}
+
+    await db.car_leads.update_one(
+        {"id": lead_id},
+        {"$set": {"hubspot": hubspot_result}}
+    )
+
+    # ── Return lead_id + price (frontend redirects after this) ──
     return {
-        "id": lead_id,
-        "inserted_id": lead_id,
+        "lead_id": lead_id,
         "price": price,
-        "base_price": final_pricing.get("base_price", 0),
-        "range_price": final_pricing.get("range_price"),
-        "discount_price": final_pricing.get("discount_price"),
-        "status": "saved",
-        "hubspot": hubspot_result.get("sent", False),
-        "webhook": webhook_result.get("sent", False),
+        "is_drivable": req.is_drivable,
+        "webhook_sent": webhook_result.get("sent", False),
+        "success": True,
     }
+
+
+@api_router.get("/leads/{lead_id}/result")
+async def get_lead_result(lead_id: str):
+    """
+    Get lead data for the estimation result page.
+    Returns pricing, vehicle info, and appointment status.
+    Refresh-safe: all data comes from DB.
+    """
+    lead = await db.car_leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(404, "Lead non trouve")
+
+    return {
+        "id": lead["id"],
+        "plate": lead.get("plate", ""),
+        "vehicle": lead.get("vehicle", {}),
+        "mileage": lead.get("mileage", 0),
+        "is_drivable": lead.get("is_drivable", True),
+        "pricing": lead.get("pricing", {}),
+        "lead_status": lead.get("lead_status", "estimated"),
+        "garage_id": lead.get("garage_id"),
+        "garage_name": lead.get("garage_name"),
+        "appointment_date": lead.get("appointment_date"),
+        "appointment_time": lead.get("appointment_time"),
+        "appointment_datetime": lead.get("appointment_datetime"),
+        "appointment_status": lead.get("appointment_status"),
+        "client": lead.get("client", {}),
+        "photos": lead.get("photos", []),
+        "created_at": lead.get("created_at"),
+    }
+
+
+@api_router.put("/leads/{lead_id}/appointment")
+async def book_appointment(lead_id: str, req: AppointmentBookRequest, request: Request):
+    """
+    Book an appointment for an existing lead.
+    Updates lead_status from 'estimated' to 'appointment_scheduled'.
+    Uses atomic operation to prevent double booking.
+    """
+    # Verify lead exists
+    lead = await db.car_leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(404, "Lead non trouve")
+
+    now = datetime.now(timezone.utc).isoformat()
+    appointment_datetime = f"{req.appointment_date}T{req.appointment_time}:00"
+
+    # ── Atomic slot booking (prevent double reservation) ──
+    appt_config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
+    max_per_slot = appt_config.get("max_per_slot", 1) if appt_config else 1
+
+    # Use find_one_and_update with condition for atomicity
+    appt_id = str(uuid.uuid4())
+    # First count existing - then insert only if under limit
+    existing_count = await db.appointments.count_documents({
+        "garage_id": req.garage_id,
+        "date": req.appointment_date,
+        "time": req.appointment_time,
+        "status": "scheduled",
+    })
+
+    if existing_count >= max_per_slot:
+        raise HTTPException(409, "Ce creneau n'est plus disponible. Veuillez en choisir un autre.")
+
+    # Insert appointment
+    await db.appointments.insert_one({
+        "id": appt_id,
+        "garage_id": req.garage_id,
+        "date": req.appointment_date,
+        "time": req.appointment_time,
+        "lead_id": lead_id,
+        "status": "scheduled",
+        "created_at": now,
+    })
+
+    # ── Update lead with appointment info ──
+    await db.car_leads.update_one(
+        {"id": lead_id},
+        {"$set": {
+            "lead_status": "appointment_scheduled",
+            "garage_id": req.garage_id,
+            "garage_name": req.garage_name,
+            "appointment_date": req.appointment_date,
+            "appointment_time": req.appointment_time,
+            "appointment_datetime": appointment_datetime,
+            "appointment_status": "scheduled",
+            "updated_at": now,
+        }}
+    )
+
+    logger.info(f"Appointment booked: lead={lead_id}, garage={req.garage_id}, date={req.appointment_date} {req.appointment_time}")
+
+    # ── Webhook 2 (appointment, optional, non-blocking) ──
+    webhook_appt_result = {"sent": False, "reason": "not_attempted"}
+    try:
+        webhook_appt_result = await webhook_service.send_appointment_update({
+            "lead_id": lead_id,
+            "lead_status": "appointment_scheduled",
+            "garage_id": req.garage_id,
+            "garage_name": req.garage_name,
+            "appointment_date": req.appointment_date,
+            "appointment_time": req.appointment_time,
+            "appointment_datetime": appointment_datetime,
+            "client": lead.get("client", {}),
+            "vehicle": lead.get("vehicle", {}),
+            "plate": lead.get("plate", ""),
+            "pricing": lead.get("pricing", {}),
+        })
+    except Exception as e:
+        logger.error(f"Webhook appointment failed: {e}")
+        webhook_appt_result = {"sent": False, "error": str(e)}
+
+    await db.car_leads.update_one(
+        {"id": lead_id},
+        {"$set": {"webhook_appointment": webhook_appt_result}}
+    )
+
+    return {
+        "success": True,
+        "lead_id": lead_id,
+        "lead_status": "appointment_scheduled",
+        "appointment_id": appt_id,
+        "garage_name": req.garage_name,
+        "appointment_date": req.appointment_date,
+        "appointment_time": req.appointment_time,
+        "webhook_sent": webhook_appt_result.get("sent", False),
+    }
+
 
 @api_router.get("/leads")
 async def get_leads(limit: int = 100):
@@ -302,12 +420,7 @@ async def get_ranges():
 @api_router.post("/ranges")
 async def create_range(r: RangeCreate):
     range_id = str(uuid.uuid4())
-    doc = {
-        "id": range_id,
-        "start_value": r.start_value,
-        "end_value": r.end_value,
-        "range_value": r.range_value,
-    }
+    doc = {"id": range_id, "start_value": r.start_value, "end_value": r.end_value, "range_value": r.range_value}
     await db.ranges.insert_one(doc)
     return {"id": range_id, "created": True}
 
@@ -371,7 +484,6 @@ async def serve_file(path: str):
 
 @api_router.get("/garages")
 async def get_garages(postal_code: str = Query(None)):
-    """Get active garages, optionally sorted by proximity to postal code."""
     garages = await db.garages.find({"active": True}, {"_id": 0}).sort("display_order", 1).to_list(100)
     if postal_code and len(postal_code) >= 2:
         prefix = postal_code[:2]
@@ -380,7 +492,6 @@ async def get_garages(postal_code: str = Query(None)):
 
 @api_router.get("/appointments/config")
 async def get_appointment_config():
-    """Get appointment configuration (active days, slots, etc.)."""
     config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
     if not config:
         config = {"key": "global", "active_days": [1, 2, 3, 4, 5], "slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"], "slot_duration": 60, "max_per_slot": 1, "disabled_dates": []}
@@ -388,7 +499,6 @@ async def get_appointment_config():
 
 @api_router.get("/appointments/available")
 async def get_available_slots(garage_id: str = Query(...), date: str = Query(...)):
-    """Get available slots for a specific garage and date."""
     config = await db.appointment_config.find_one({"key": "global"}, {"_id": 0})
     if not config:
         config = {"slots": ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"], "max_per_slot": 1, "disabled_dates": []}
@@ -399,9 +509,8 @@ async def get_available_slots(garage_id: str = Query(...), date: str = Query(...
     max_per_slot = config.get("max_per_slot", 1)
     all_slots = config.get("slots", [])
 
-    # Count existing bookings per slot
     booked = {}
-    cursor = db.appointments.find({"garage_id": garage_id, "date": date}, {"_id": 0, "time": 1})
+    cursor = db.appointments.find({"garage_id": garage_id, "date": date, "status": "scheduled"}, {"_id": 0, "time": 1})
     async for appt in cursor:
         t = appt["time"]
         booked[t] = booked.get(t, 0) + 1
@@ -425,7 +534,6 @@ async def track_event(event: TrackingEvent):
 
 @api_router.post("/admin/login")
 async def admin_login(req: AdminLoginRequest):
-    """Login with admin password → get JWT token."""
     if not admin_service.verify_admin_password(req.password):
         raise HTTPException(401, "Mot de passe incorrect")
     token = admin_service.create_token()
@@ -433,14 +541,12 @@ async def admin_login(req: AdminLoginRequest):
 
 @api_router.get("/admin/settings")
 async def admin_get_settings(request: Request):
-    """Get all settings (secrets masked)."""
     await require_admin(request)
     settings = await admin_service.get_settings(db, mask_secrets=True)
     return settings
 
 @api_router.post("/admin/settings")
 async def admin_update_settings(updates: AdminSettingsUpdate, request: Request):
-    """Update settings in DB. Secrets accepted in full, returned masked."""
     await require_admin(request)
     update_dict = {k: v for k, v in updates.dict().items() if v is not None}
     result = await admin_service.update_settings(db, update_dict)
@@ -448,23 +554,45 @@ async def admin_update_settings(updates: AdminSettingsUpdate, request: Request):
     return result
 
 @api_router.get("/admin/leads")
-async def admin_get_leads(request: Request, limit: int = 200, skip: int = 0):
-    """Get leads with pagination for admin dashboard."""
+async def admin_get_leads(
+    request: Request,
+    limit: int = 200,
+    skip: int = 0,
+    lead_status: Optional[str] = None,
+    has_appointment: Optional[bool] = None,
+    garage_id: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """Get leads with filtering and pagination."""
     await require_admin(request)
-    total = await db.car_leads.count_documents({})
-    leads = await db.car_leads.find({}, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+
+    query = {}
+    if lead_status:
+        query["lead_status"] = lead_status
+    if has_appointment is True:
+        query["appointment_status"] = "scheduled"
+    elif has_appointment is False:
+        query["$or"] = [{"appointment_status": None}, {"appointment_status": {"$exists": False}}]
+    if garage_id:
+        query["garage_id"] = garage_id
+    if date_from:
+        query.setdefault("created_at", {})["$gte"] = date_from
+    if date_to:
+        query.setdefault("created_at", {})["$lte"] = date_to + "T23:59:59"
+
+    total = await db.car_leads.count_documents(query)
+    leads = await db.car_leads.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return {"leads": leads, "total": total, "limit": limit, "skip": skip}
 
 @api_router.get("/admin/ranges")
 async def admin_get_ranges(request: Request):
-    """Get all price ranges for admin."""
     await require_admin(request)
     ranges = await db.ranges.find({}, {"_id": 0}).sort("start_value", 1).to_list(100)
     return {"ranges": ranges}
 
 @api_router.post("/admin/ranges")
 async def admin_create_range(r: RangeCreate, request: Request):
-    """Create a price range."""
     await require_admin(request)
     range_id = str(uuid.uuid4())
     doc = {"id": range_id, "start_value": r.start_value, "end_value": r.end_value, "range_value": r.range_value}
@@ -473,7 +601,6 @@ async def admin_create_range(r: RangeCreate, request: Request):
 
 @api_router.delete("/admin/ranges/{range_id}")
 async def admin_delete_range(range_id: str, request: Request):
-    """Delete a price range."""
     await require_admin(request)
     result = await db.ranges.delete_one({"id": range_id})
     if result.deleted_count == 0:
@@ -482,24 +609,46 @@ async def admin_delete_range(range_id: str, request: Request):
 
 @api_router.get("/admin/stats")
 async def admin_stats(request: Request):
-    """Dashboard summary stats."""
     await require_admin(request)
     total_leads = await db.car_leads.count_documents({})
+    estimated_leads = await db.car_leads.count_documents({"lead_status": "estimated"})
+    appointed_leads = await db.car_leads.count_documents({"lead_status": "appointment_scheduled"})
     drivable_leads = await db.car_leads.count_documents({"is_drivable": True})
     non_drivable_leads = await db.car_leads.count_documents({"is_drivable": False})
     total_garages = await db.garages.count_documents({})
     total_appointments = await db.appointments.count_documents({})
+
+    # Legacy leads without lead_status
+    legacy_leads = await db.car_leads.count_documents({"lead_status": {"$exists": False}})
+
+    conversion_rate = round((appointed_leads / estimated_leads * 100), 1) if estimated_leads > 0 else 0
+
     cfg = await admin_service.get_settings(db, mask_secrets=True)
     autobiz_ok = bool(cfg.get("autobiz_username") and cfg.get("autobiz_base_url"))
+
+    # Webhook failures
+    webhook_failures = await db.car_leads.count_documents({
+        "$or": [
+            {"webhook_estimation.sent": False, "webhook_estimation.error": {"$exists": True}},
+            {"webhook_appointment.sent": False, "webhook_appointment.error": {"$exists": True}},
+        ]
+    })
+
     return {
         "total_leads": total_leads,
+        "estimated_leads": estimated_leads,
+        "appointed_leads": appointed_leads,
+        "conversion_rate": conversion_rate,
         "drivable_leads": drivable_leads,
         "non_drivable_leads": non_drivable_leads,
+        "legacy_leads": legacy_leads,
         "total_garages": total_garages,
         "total_appointments": total_appointments,
+        "webhook_failures": webhook_failures,
         "autobiz_configured": autobiz_ok,
         "hubspot_enabled": cfg.get("enable_hubspot", False),
         "webhook_enabled": cfg.get("enable_webhook", False),
+        "webhook_appointment_enabled": cfg.get("enable_webhook_appointment", False),
     }
 
 # ── Admin Garages CRUD ──
@@ -559,7 +708,6 @@ async def admin_get_appointments(request: Request, limit: int = 100):
 
 @api_router.post("/admin/test-autobiz")
 async def admin_test_autobiz(request: Request):
-    """Test Autobiz connection without exposing secrets."""
     await require_admin(request)
     cfg = await autobiz_service._get_dynamic_config()
     if not cfg["configured"]:
@@ -571,12 +719,8 @@ async def admin_test_autobiz(request: Request):
     try:
         import httpx
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                auth_url,
-                headers={"username": cfg["username"], "password": cfg["password"]},
-            )
+            resp = await client.post(auth_url, headers={"username": cfg["username"], "password": cfg["password"]})
             body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"raw": resp.text[:300]}
-            # Never return password in response
             return {
                 "success": resp.status_code == 200,
                 "auth_url": auth_url,
@@ -609,12 +753,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    # Set DB references for services (dynamic settings)
     autobiz_service.set_db(db)
     hubspot_service.set_db(db)
     webhook_service.set_db(db)
 
-    # Init storage
     try:
         init_storage()
         logger.info("Object storage initialized")

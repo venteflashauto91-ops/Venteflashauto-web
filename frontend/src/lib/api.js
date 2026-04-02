@@ -17,8 +17,18 @@ export async function getQuotation(vehicle, mileage) {
 
 // ── Leads ──────────────────────────────────────────────────────────
 
-export async function saveLead(leadData) {
-  const res = await axios.post(`${API}/leads/save`, leadData);
+export async function estimateLead(data) {
+  const res = await axios.post(`${API}/leads/estimate`, data);
+  return res.data;
+}
+
+export async function getLeadResult(leadId) {
+  const res = await axios.get(`${API}/leads/${leadId}/result`);
+  return res.data;
+}
+
+export async function bookAppointment(leadId, data) {
+  const res = await axios.put(`${API}/leads/${leadId}/appointment`, data);
   return res.data;
 }
 

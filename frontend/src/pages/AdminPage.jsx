@@ -217,8 +217,12 @@ function SettingsTab({ authHeaders }) {
       </Section>
 
       <Section title="Webhook" desc="Envoyer les leads vers un service externe">
-        <Toggle label="Activer Webhook" field="enable_webhook" />
-        {settings.enable_webhook && <Field label="URL du webhook" field="webhook_url" />}
+        <Toggle label="Activer Webhook (estimation)" field="enable_webhook" />
+        {settings.enable_webhook && <Field label="URL du webhook estimation" field="webhook_url" />}
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <Toggle label="Activer Webhook (confirmation RDV)" field="enable_webhook_appointment" />
+          {settings.enable_webhook_appointment && <Field label="URL du webhook RDV" field="webhook_appointment_url" />}
+        </div>
       </Section>
 
       <div className="flex items-center gap-3">
@@ -477,21 +481,81 @@ function LeadsTab({ authHeaders }) {
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
   const [expanded, setExpanded] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [filter, setFilter] = useState('all');
 
   const load = useCallback(async () => {
-    const r = await fetch(`${API}/api/admin/leads?limit=100`, { headers: authHeaders });
+    const params = new URLSearchParams({ limit: '100' });
+    if (filter === 'estimated') params.set('lead_status', 'estimated');
+    if (filter === 'appointed') params.set('lead_status', 'appointment_scheduled');
+    if (filter === 'no_rdv') params.set('has_appointment', 'false');
+    const r = await fetch(`${API}/api/admin/leads?${params}`, { headers: authHeaders });
     if (r.ok) { const d = await r.json(); setLeads(d.leads); setTotal(d.total); }
-  }, [authHeaders]);
+    // Load stats
+    const sr = await fetch(`${API}/api/admin/stats`, { headers: authHeaders });
+    if (sr.ok) setStats(await sr.json());
+  }, [authHeaders, filter]);
 
   useEffect(() => { load(); }, [load]);
 
+  const StatusBadge = ({ status }) => {
+    const colors = {
+      estimated: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      appointment_scheduled: 'bg-green-500/10 text-green-400 border-green-500/20',
+    };
+    const labels = { estimated: 'Estime', appointment_scheduled: 'RDV pris' };
+    return status ? (
+      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${colors[status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+        {labels[status] || status}
+      </span>
+    ) : <span className="text-[10px] text-gray-600">legacy</span>;
+  };
+
   return (
     <div className="max-w-5xl">
+      {/* Stats bar */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6" data-testid="leads-stats">
+          <div className="bg-[#1a1d2e] rounded-lg border border-white/5 p-4">
+            <p className="text-xs text-gray-500">Total leads</p>
+            <p className="text-2xl font-bold text-white">{stats.total_leads}</p>
+          </div>
+          <div className="bg-[#1a1d2e] rounded-lg border border-white/5 p-4">
+            <p className="text-xs text-blue-400">Estimes (sans RDV)</p>
+            <p className="text-2xl font-bold text-blue-400">{stats.estimated_leads}</p>
+          </div>
+          <div className="bg-[#1a1d2e] rounded-lg border border-white/5 p-4">
+            <p className="text-xs text-green-400">RDV pris</p>
+            <p className="text-2xl font-bold text-green-400">{stats.appointed_leads}</p>
+          </div>
+          <div className="bg-[#1a1d2e] rounded-lg border border-white/5 p-4">
+            <p className="text-xs text-[#ff4605]">Taux conversion</p>
+            <p className="text-2xl font-bold text-[#ff4605]">{stats.conversion_rate}%</p>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-white font-['Mulish'] font-bold text-lg">{total} lead{total > 1 ? 's' : ''}</h2>
-        <Button onClick={load} variant="ghost" className="text-gray-400 hover:text-white h-8 px-3 text-xs" data-testid="refresh-leads">
-          <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
-        </Button>
+        <div className="flex gap-1 bg-[#1a1d2e] rounded-lg p-1">
+          {[
+            { id: 'all', label: 'Tous' },
+            { id: 'estimated', label: 'Estimes' },
+            { id: 'appointed', label: 'RDV pris' },
+            { id: 'no_rdv', label: 'Sans RDV' },
+          ].map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)} data-testid={`filter-${f.id}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${filter === f.id ? 'bg-[#ff4605] text-white' : 'text-gray-400 hover:text-white'}`}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs">{total} resultat{total > 1 ? 's' : ''}</span>
+          <Button onClick={load} variant="ghost" className="text-gray-400 hover:text-white h-8 px-3 text-xs" data-testid="refresh-leads">
+            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -502,15 +566,16 @@ function LeadsTab({ authHeaders }) {
           const p = lead.pricing || {};
           return (
             <div key={lead.id} className="bg-[#1a1d2e] rounded-lg border border-white/5 overflow-hidden" data-testid={`lead-${lead.id}`}>
-              <button onClick={() => setExpanded(isOpen ? null : lead.id)} className="w-full px-4 py-3 flex items-center gap-4 text-left hover:bg-white/[0.02] transition">
+              <button onClick={() => setExpanded(isOpen ? null : lead.id)} className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/[0.02] transition">
                 <div className={`w-2 h-2 rounded-full shrink-0 ${lead.is_drivable ? 'bg-green-400' : 'bg-orange-400'}`} />
                 <div className="flex-1 min-w-0">
                   <span className="text-white text-sm font-medium">{c.firstname} {c.lastname}</span>
                   <span className="text-gray-500 text-xs ml-3">{c.email}</span>
                 </div>
-                <div className="text-sm text-gray-300 shrink-0">{v.make} {v.model}</div>
+                <StatusBadge status={lead.lead_status} />
+                <div className="text-sm text-gray-300 shrink-0 hidden md:block">{v.make} {v.model}</div>
                 <div className="text-sm font-bold text-[#ff4605] shrink-0 w-24 text-right">{p.final_price ? `${Number(p.final_price).toLocaleString('fr-FR')} EUR` : '—'}</div>
-                <div className="text-xs text-gray-500 shrink-0 w-32 text-right">{lead.created_at?.slice(0, 16).replace('T', ' ')}</div>
+                <div className="text-xs text-gray-500 shrink-0 w-28 text-right hidden sm:block">{lead.created_at?.slice(0, 16).replace('T', ' ')}</div>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-gray-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />}
               </button>
               {isOpen && (
@@ -521,12 +586,17 @@ function LeadsTab({ authHeaders }) {
                   <Detail label="Carburant" value={v.fuel} />
                   <Detail label="Boite" value={v.gearbox} />
                   <Detail label="Roulant" value={lead.is_drivable ? 'Oui' : 'Non'} />
+                  <Detail label="Statut" value={lead.lead_status || 'legacy'} />
                   <Detail label="Telephone" value={c.phone} />
                   <Detail label="Code postal" value={c.postal_code} />
                   <Detail label="Source" value={lead.source} />
                   <Detail label="Base prix" value={p.base_price ? `${Number(p.base_price).toLocaleString('fr-FR')} EUR` : '—'} />
                   <Detail label="Range prix" value={p.range_price ? `${Number(p.range_price).toLocaleString('fr-FR')} EUR` : '—'} />
                   <Detail label="Remise %" value={p.discount_percent != null ? `${p.discount_percent}%` : '—'} />
+                  {lead.garage_name && <Detail label="Garage" value={lead.garage_name} />}
+                  {lead.appointment_date && <Detail label="RDV" value={`${lead.appointment_date} ${lead.appointment_time || ''}`} />}
+                  {lead.webhook_estimation && <Detail label="Webhook estimation" value={lead.webhook_estimation.sent ? 'Envoye' : `Echec: ${lead.webhook_estimation.error || lead.webhook_estimation.reason || '?'}`} />}
+                  {lead.webhook_appointment && <Detail label="Webhook RDV" value={lead.webhook_appointment.sent ? 'Envoye' : `Echec: ${lead.webhook_appointment.error || lead.webhook_appointment.reason || '?'}`} />}
                   {lead.tracking?.utm_source && <Detail label="UTM Source" value={lead.tracking.utm_source} />}
                   {lead.tracking?.gclid && <Detail label="GCLID" value={lead.tracking.gclid} />}
                   <Detail label="ID" value={lead.id} />

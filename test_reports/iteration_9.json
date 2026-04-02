@@ -1,0 +1,119 @@
+{
+  "summary": "Completed comprehensive testing of refactored funnel. All 18 backend tests passed. All 8 frontend UI tests passed. New flow works correctly: 1) /car-search form: vehicle → booleans → photos → client → 'Obtenir le prix de vente' button, 2) POST /api/leads/estimate creates lead with lead_status=estimated, returns lead_id+price, 3) Redirect to /estimation-result (drivable) or /car-estimation-page-2 (non-drivable), 4) /estimation-result loads lead from DB, shows price, garages, calendar, booking flow, 5) PUT /api/leads/{lead_id}/appointment updates to appointment_scheduled, shows confirmation, 6) Admin Leads tab shows stats (total, estimated, appointed, conversion rate) and filters work.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Estimation result page", "issues": ["Price shows 0 EUR because Autobiz is not configured - expected behavior"]}
+    ]
+  },
+
+  "passed_tests": [
+    "BACKEND: POST /api/leads/estimate with drivable=true returns lead_id and price - PASSED",
+    "BACKEND: POST /api/leads/estimate with drivable=false returns price=0 - PASSED",
+    "BACKEND: POST /api/leads/estimate creates lead with lead_status=estimated - PASSED",
+    "BACKEND: GET /api/leads/{lead_id}/result returns complete lead data - PASSED",
+    "BACKEND: GET /api/leads/{invalid_id}/result returns 404 - PASSED",
+    "BACKEND: PUT /api/leads/{lead_id}/appointment updates lead to appointment_scheduled - PASSED",
+    "BACKEND: PUT /api/leads/{invalid_id}/appointment returns 404 - PASSED",
+    "BACKEND: GET /api/garages returns active garages - PASSED",
+    "BACKEND: GET /api/garages?postal_code=75011 sorts by proximity - PASSED",
+    "BACKEND: GET /api/appointments/available returns slots for garage+date - PASSED",
+    "BACKEND: GET /api/appointments/available requires params - PASSED",
+    "BACKEND: GET /api/admin/stats returns conversion metrics - PASSED",
+    "BACKEND: GET /api/admin/stats requires auth - PASSED",
+    "BACKEND: GET /api/admin/leads?lead_status=estimated filters correctly - PASSED",
+    "BACKEND: GET /api/admin/leads?lead_status=appointment_scheduled filters correctly - PASSED",
+    "BACKEND: GET /api/admin/leads?has_appointment=false filters correctly - PASSED",
+    "BACKEND: GET /api/admin/leads requires auth - PASSED",
+    "BACKEND: Slot becomes unavailable when booked (concurrency protection) - PASSED",
+    "FRONTEND: /car-search page loads with plate input - PASSED",
+    "FRONTEND: Vehicle identification with plate GJ423VM works - PASSED",
+    "FRONTEND: Form flow: vehicle → version+KM → drivable → booleans → photos → contact → submit button - PASSED",
+    "FRONTEND: Submit button 'Obtenir le prix de vente' appears after contact filled - PASSED",
+    "FRONTEND: Form submission redirects to /estimation-result with lead_id - PASSED",
+    "FRONTEND: /estimation-result loads lead from DB, shows price, garages, calendar - PASSED",
+    "FRONTEND: Appointment booking flow: garage → date → slot → confirm → confirmation displayed - PASSED",
+    "FRONTEND: Non-drivable flow redirects to /car-estimation-page-2 with no garages - PASSED",
+    "FRONTEND: Admin Leads tab shows stats (total, estimated, appointed, conversion rate) - PASSED",
+    "FRONTEND: Admin Leads filters (Tous, Estimes, RDV pris, Sans RDV) work - PASSED"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_new_funnel.py",
+    "/app/test_reports/pytest/pytest_results_iter9.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_new_funnel.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "100% (10/10 UI tests passed)"
+  },
+
+  "test_credentials": {
+    "admin_password": "changeme123",
+    "test_plate": "GJ423VM (VW Golf Plus 2017 with real Autobiz versions)",
+    "test_garages": ["Paris-Nation (75011)", "Lyon-Part-Dieu (69003)", "Marseille-Prado (13008)"]
+  },
+
+  "seed_data_creation": "Multiple test leads created during testing: TEST_Playwright Submit, TEST_Booking Confirm (with RDV), TEST_NonDrivable Flow",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "Refactored funnel fully tested. New endpoints: POST /api/leads/estimate (creates lead with estimated status, returns lead_id+price), GET /api/leads/{lead_id}/result (returns lead data for result page), PUT /api/leads/{lead_id}/appointment (books appointment, updates to appointment_scheduled). Old endpoints removed: POST /api/leads/save, /result-page route. Form flow: vehicle → booleans → photos (optional) → client → submit. Drivable leads redirect to /estimation-result, non-drivable to /car-estimation-page-2. Admin stats now include conversion_rate. Use plate GJ423VM for frontend tests. HubSpot and Webhook remain DISABLED (mocked).",
+
+  "mocked_apis": {
+    "autobiz_service.py": "REAL when credentials configured - falls back to mock if not configured (price=0)",
+    "hubspot_service.py": "DISABLED (ENABLE_HUBSPOT=false) - returns sent=false",
+    "webhook_service.py": "DISABLED (ENABLE_WEBHOOK=false) - returns sent=false"
+  },
+
+  "new_funnel_flow": {
+    "drivable_flow": [
+      "1. /car-search?car_info=PLATE - Vehicle identification",
+      "2. Select version + enter KM",
+      "3. Click drivable=yes",
+      "4. Answer 4 boolean questions (imported, firstHand, maintenanceBook, maintenanceInvoices)",
+      "5. Photos section appears (optional)",
+      "6. Contact section appears (firstname, lastname, email, phone, postal_code)",
+      "7. 'Obtenir le prix de vente' button appears after contact filled",
+      "8. Click submit → POST /api/leads/estimate → lead created with status=estimated",
+      "9. Redirect to /estimation-result?lead_id=xxx",
+      "10. Page loads lead from GET /api/leads/{lead_id}/result",
+      "11. Price displayed, garages list shown",
+      "12. Select garage → date picker with 14 dates",
+      "13. Select date → time slots fetched from GET /api/appointments/available",
+      "14. Select slot → confirm section with recap",
+      "15. Click confirm → PUT /api/leads/{lead_id}/appointment",
+      "16. Booking confirmation displayed with garage, date, time"
+    ],
+    "non_drivable_flow": [
+      "1. /car-search?car_info=PLATE - Vehicle identification",
+      "2. Select version + enter KM",
+      "3. Click drivable=no",
+      "4. Reason section appears (Panne mecanique, Accident, Panne electrique, Autre)",
+      "5. Select reason",
+      "6. Photos + Contact sections appear",
+      "7. 'Obtenir le prix de vente' button appears after contact filled",
+      "8. Click submit → POST /api/leads/estimate → lead created with status=estimated, price=0",
+      "9. Redirect to /car-estimation-page-2?lead_id=xxx",
+      "10. Page shows 'Demande enregistree' with vehicle info",
+      "11. No garages section (expert will contact for on-site estimation)"
+    ]
+  }
+}
