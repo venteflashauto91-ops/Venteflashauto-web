@@ -4,7 +4,7 @@ import { Car, Calendar, Fuel, DoorOpen, Cog, Gauge, CheckCircle2, Loader2, Arrow
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { identifyVehicle, uploadPhoto, estimateLead, trackEvent } from '@/lib/api';
+import { identifyVehicle, uploadPhoto, estimateLead, trackEvent, getFormConfig } from '@/lib/api';
 import { getMergedUtm, storeUtm } from '@/lib/utm';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
@@ -54,8 +54,17 @@ export default function CarSearchPage() {
   // ── Submission ──
   const [submitting, setSubmitting] = useState(false);
 
+  // ── Form Config (admin-controlled) ──
+  const [formConfig, setFormConfig] = useState(null);
+  const fc = (key) => formConfig?.fields?.[key] || { enabled: true, required: false };
+
   // ── UTM ──
   useEffect(() => { storeUtm(); }, []);
+
+  // ── Load form config ──
+  useEffect(() => {
+    getFormConfig().then(setFormConfig).catch(() => {});
+  }, []);
 
   // ── Identify ──
   useEffect(() => {
@@ -79,15 +88,14 @@ export default function CarSearchPage() {
   const allFieldsFilled = identified && values.version && values.km;
   const showDrivableSection = allFieldsFilled;
   const showReasonSection = drivable === 'no';
-  const showAdditionalSection = drivable === 'yes';
-  const allBoolsAnswered = BOOLEAN_QUESTIONS.every(q => boolAnswers[q.key]);
+  const showAdditionalSection = drivable === 'yes' && fc('additional_info').enabled;
+  const allBoolsAnswered = !fc('additional_info').enabled || BOOLEAN_QUESTIONS.every(q => boolAnswers[q.key]);
 
   // Auto-scroll to next section after drivable selection
   useEffect(() => {
     if (!drivable) return;
     const target = drivable === 'yes' ? additionalRef.current : reasonRef.current;
     if (!target) return;
-    // setTimeout ensures the DOM is fully laid out before scrolling
     const timer = setTimeout(() => {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);
@@ -95,11 +103,18 @@ export default function CarSearchPage() {
   }, [drivable]);
 
   // Photos section: visible after booleans (drivable) or reason (non-drivable)
-  const showPhotosSection = (drivable === 'yes' && allBoolsAnswered) || (drivable === 'no' && reason);
-  // Contact section: visible after photos section is shown
-  const showContactSection = showPhotosSection;
-  // Submit button: visible after contact is filled
-  const contactFilled = client.firstname && client.lastname && client.email && client.phone;
+  const showPhotosSection = fc('photos').enabled && ((drivable === 'yes' && allBoolsAnswered) || (drivable === 'no' && reason));
+  // Contact section: visible after previous sections are done
+  const prevSectionsDone = (drivable === 'yes' && allBoolsAnswered) || (drivable === 'no' && reason);
+  const showContactSection = prevSectionsDone;
+  // Submit button: visible after required contact fields are filled
+  const contactFilled = (
+    (!fc('firstname').enabled || !fc('firstname').required || client.firstname) &&
+    (!fc('lastname').enabled || !fc('lastname').required || client.lastname) &&
+    (!fc('email').enabled || !fc('email').required || client.email) &&
+    (!fc('phone').enabled || !fc('phone').required || client.phone) &&
+    (!fc('postal_code').enabled || !fc('postal_code').required || client.postal_code)
+  );
   const showSubmitButton = showContactSection && contactFilled;
 
   // ── Photos ──
@@ -293,7 +308,7 @@ export default function CarSearchPage() {
         {showPhotosSection && (
           <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-photos">
             <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-1">Photos du vehicule</h2>
-            <p className="text-xs text-gray-400 mb-4">Optionnel — {MAX_PHOTOS} photos maximum, 10 Mo par photo</p>
+            <p className="text-xs text-gray-400 mb-4">{fc('photos').required ? 'Obligatoire' : 'Optionnel'} — {MAX_PHOTOS} photos maximum, 10 Mo par photo</p>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhotoUpload(e.target.files)} />
             <div className="flex flex-wrap gap-3">
               {previews.map((p, i) => (
@@ -318,12 +333,12 @@ export default function CarSearchPage() {
             <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Vos coordonnees</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormInput label="Prenom *" testId="input-firstname" placeholder="Jean" value={client.firstname} onChange={(v) => updateClient('firstname', v)} />
-                <FormInput label="Nom *" testId="input-lastname" placeholder="Dupont" value={client.lastname} onChange={(v) => updateClient('lastname', v)} />
+                {fc('firstname').enabled && <FormInput label={`Prenom${fc('firstname').required ? ' *' : ''}`} testId="input-firstname" placeholder="Jean" value={client.firstname} onChange={(v) => updateClient('firstname', v)} />}
+                {fc('lastname').enabled && <FormInput label={`Nom${fc('lastname').required ? ' *' : ''}`} testId="input-lastname" placeholder="Dupont" value={client.lastname} onChange={(v) => updateClient('lastname', v)} />}
               </div>
-              <FormInput label="Email *" testId="input-email" type="email" placeholder="jean@email.com" value={client.email} onChange={(v) => updateClient('email', v)} />
-              <FormInput label="Telephone *" testId="input-phone" type="tel" placeholder="06 12 34 56 78" value={client.phone} onChange={(v) => updateClient('phone', v)} />
-              <FormInput label="Code postal" testId="input-postal" placeholder="75011" value={client.postal_code} onChange={(v) => updateClient('postal_code', v)} maxLength={5} />
+              {fc('email').enabled && <FormInput label={`Email${fc('email').required ? ' *' : ''}`} testId="input-email" type="email" placeholder="jean@email.com" value={client.email} onChange={(v) => updateClient('email', v)} />}
+              {fc('phone').enabled && <FormInput label={`Telephone${fc('phone').required ? ' *' : ''}`} testId="input-phone" type="tel" placeholder="06 12 34 56 78" value={client.phone} onChange={(v) => updateClient('phone', v)} />}
+              {fc('postal_code').enabled && <FormInput label={`Code postal${fc('postal_code').required ? ' *' : ''}`} testId="input-postal" placeholder="75011" value={client.postal_code} onChange={(v) => updateClient('postal_code', v)} maxLength={5} />}
             </div>
           </section>
         )}

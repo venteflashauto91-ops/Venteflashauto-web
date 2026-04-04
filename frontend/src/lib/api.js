@@ -61,6 +61,13 @@ export async function getAvailableSlots(garageId, date) {
   return res.data;
 }
 
+// ── Form Config ────────────────────────────────────────────────────
+
+export async function getFormConfig() {
+  const res = await axios.get(`${API}/form-config`);
+  return res.data;
+}
+
 // ── Ranges & Settings ──────────────────────────────────────────────
 
 export async function getRanges() {

@@ -482,6 +482,56 @@ async def serve_file(path: str):
 
 # ── GARAGES & APPOINTMENTS (public) ──────────────────────────────────
 
+# Default form config
+FORM_CONFIG_DEFAULTS = {
+    "key": "global",
+    "fields": {
+        "additional_info": {"enabled": True, "required": True, "label": "Informations complementaires"},
+        "photos": {"enabled": True, "required": False, "label": "Photos du vehicule"},
+        "firstname": {"enabled": True, "required": True, "label": "Prenom"},
+        "lastname": {"enabled": True, "required": True, "label": "Nom"},
+        "email": {"enabled": True, "required": True, "label": "Email"},
+        "phone": {"enabled": True, "required": True, "label": "Telephone"},
+        "postal_code": {"enabled": True, "required": False, "label": "Code postal"},
+    }
+}
+
+@api_router.get("/form-config")
+async def get_form_config():
+    """Public endpoint: frontend loads this to configure the form."""
+    config = await db.form_config.find_one({"key": "global"}, {"_id": 0})
+    if not config:
+        return FORM_CONFIG_DEFAULTS
+    # Merge defaults for any missing fields
+    merged = {**FORM_CONFIG_DEFAULTS}
+    merged["fields"] = {**FORM_CONFIG_DEFAULTS["fields"]}
+    for field_key, field_val in (config.get("fields") or {}).items():
+        if field_key in merged["fields"]:
+            merged["fields"][field_key] = {**merged["fields"][field_key], **field_val}
+    return merged
+
+@api_router.get("/admin/form-config")
+async def admin_get_form_config(request: Request):
+    await require_admin(request)
+    config = await db.form_config.find_one({"key": "global"}, {"_id": 0})
+    if not config:
+        return FORM_CONFIG_DEFAULTS
+    merged = {**FORM_CONFIG_DEFAULTS}
+    merged["fields"] = {**FORM_CONFIG_DEFAULTS["fields"]}
+    for field_key, field_val in (config.get("fields") or {}).items():
+        if field_key in merged["fields"]:
+            merged["fields"][field_key] = {**merged["fields"][field_key], **field_val}
+    return merged
+
+@api_router.post("/admin/form-config")
+async def admin_update_form_config(request: Request):
+    await require_admin(request)
+    body = await request.json()
+    fields = body.get("fields", {})
+    doc = {"key": "global", "fields": fields}
+    await db.form_config.update_one({"key": "global"}, {"$set": doc}, upsert=True)
+    return doc
+
 @api_router.get("/garages")
 async def get_garages(postal_code: str = Query(None)):
     garages = await db.garages.find({"active": True}, {"_id": 0}).sort("display_order", 1).to_list(100)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X } from 'lucide-react';
+import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -65,6 +65,7 @@ function AdminPage() {
         <div className="flex gap-1 mb-6 bg-[#1a1d2e] rounded-lg p-1 w-fit flex-wrap">
           {[
             { id: 'settings', label: 'Configuration', icon: Settings },
+            { id: 'form', label: 'Formulaire', icon: SlidersHorizontal },
             { id: 'ranges', label: 'Fourchettes', icon: BarChart3 },
             { id: 'garages', label: 'Garages', icon: MapPin },
             { id: 'appointments', label: 'RDV', icon: Calendar },
@@ -78,6 +79,7 @@ function AdminPage() {
         </div>
 
         {tab === 'settings' && <SettingsTab authHeaders={authHeaders} />}
+        {tab === 'form' && <FormConfigTab authHeaders={authHeaders} />}
         {tab === 'ranges' && <RangesTab authHeaders={authHeaders} />}
         {tab === 'garages' && <GaragesTab authHeaders={authHeaders} />}
         {tab === 'appointments' && <AppointmentsTab authHeaders={authHeaders} />}
@@ -107,6 +109,124 @@ function LoginScreen({ password, setPassword, error, onSubmit }) {
             Se connecter
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Form Config Tab ── */
+function FormConfigTab({ authHeaders }) {
+  const [config, setConfig] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const FIELD_ORDER = [
+    { key: 'additional_info', label: 'Informations complementaires', desc: 'Les 4 questions (importe, premier proprietaire, carnet, factures)' },
+    { key: 'photos', label: 'Photos du vehicule', desc: 'Upload de photos du vehicule' },
+    { key: 'firstname', label: 'Prenom', desc: 'Prenom du client' },
+    { key: 'lastname', label: 'Nom', desc: 'Nom de famille du client' },
+    { key: 'email', label: 'Email', desc: 'Adresse email du client' },
+    { key: 'phone', label: 'Telephone', desc: 'Numero de telephone du client' },
+    { key: 'postal_code', label: 'Code postal', desc: 'Code postal du client' },
+  ];
+
+  const load = useCallback(async () => {
+    const r = await fetch(`${API}/api/admin/form-config`, { headers: authHeaders });
+    if (r.ok) setConfig(await r.json());
+  }, [authHeaders]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleField = (fieldKey, prop) => {
+    setConfig(prev => ({
+      ...prev,
+      fields: {
+        ...prev.fields,
+        [fieldKey]: {
+          ...prev.fields[fieldKey],
+          [prop]: !prev.fields[fieldKey][prop],
+          // If disabling, also make not required
+          ...(prop === 'enabled' && prev.fields[fieldKey].enabled ? { required: false } : {}),
+        },
+      },
+    }));
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    const r = await fetch(`${API}/api/admin/form-config`, {
+      method: 'POST',
+      headers: { ...authHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: config.fields }),
+    });
+    setSaving(false);
+    if (r.ok) setSaved(true);
+  };
+
+  if (!config) return <p className="text-gray-500 text-sm">Chargement...</p>;
+
+  return (
+    <div className="max-w-2xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-white font-['Mulish'] font-bold text-lg">Configuration du formulaire</h2>
+          <p className="text-gray-500 text-xs mt-1">Activez/desactivez les champs et rendez-les obligatoires ou optionnels</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="bg-[#ff4605] hover:bg-[#e63e00] text-white font-bold rounded-lg h-9 px-4 text-sm" data-testid="save-form-config">
+          {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+        </Button>
+      </div>
+      {saved && <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-400 text-sm mb-4" data-testid="form-config-saved">Configuration sauvegardee</div>}
+
+      <div className="space-y-2">
+        {FIELD_ORDER.map(({ key, label, desc }) => {
+          const field = config.fields[key] || { enabled: true, required: false };
+          return (
+            <div key={key} className={`bg-[#1a1d2e] rounded-lg border border-white/5 p-4 transition ${!field.enabled ? 'opacity-50' : ''}`} data-testid={`form-field-${key}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium">{label}</p>
+                  <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0 ml-4">
+                  {/* Required toggle */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Obligatoire</span>
+                    <button
+                      data-testid={`toggle-required-${key}`}
+                      onClick={() => field.enabled && toggleField(key, 'required')}
+                      disabled={!field.enabled}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${field.required && field.enabled ? 'bg-[#ff4605]' : 'bg-gray-700'} ${!field.enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${field.required && field.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  {/* Enabled toggle */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Actif</span>
+                    <button
+                      data-testid={`toggle-enabled-${key}`}
+                      onClick={() => toggleField(key, 'enabled')}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${field.enabled ? 'bg-green-500' : 'bg-gray-700'}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${field.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 bg-[#1a1d2e] rounded-lg border border-white/5 p-4">
+        <p className="text-xs text-gray-500">
+          Les champs desactives ne seront pas affiches dans le formulaire.
+          Les champs obligatoires devront etre remplis pour soumettre l'estimation.
+        </p>
       </div>
     </div>
   );
