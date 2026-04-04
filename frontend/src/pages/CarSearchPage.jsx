@@ -47,6 +47,10 @@ export default function CarSearchPage() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // ── Section refs for auto-scroll ──
+  const additionalRef = useRef(null);
+  const reasonRef = useRef(null);
+
   // ── Submission ──
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,6 +81,21 @@ export default function CarSearchPage() {
   const showReasonSection = drivable === 'no';
   const showAdditionalSection = drivable === 'yes';
   const allBoolsAnswered = BOOLEAN_QUESTIONS.every(q => boolAnswers[q.key]);
+
+  // Auto-scroll to next section after drivable selection
+  useEffect(() => {
+    if (!drivable) return;
+    const target = drivable === 'yes' ? additionalRef.current : reasonRef.current;
+    if (!target) return;
+    // Wait for DOM render
+    requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      // Only scroll if section is not already visible
+      if (rect.top > window.innerHeight || rect.top < 0) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }, [drivable]);
 
   // Photos section: visible after booleans (drivable) or reason (non-drivable)
   const showPhotosSection = (drivable === 'yes' && allBoolsAnswered) || (drivable === 'no' && reason);
@@ -249,7 +268,7 @@ export default function CarSearchPage() {
 
         {/* SECTION 2b: Reason (non-drivable) */}
         {showReasonSection && (
-          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-reason">
+          <section ref={reasonRef} style={{ scrollMarginTop: '80px' }} className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-reason">
             <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Motif de non roulage</h2>
             <div className="grid grid-cols-2 gap-3 mb-4">
               {['Panne mecanique', 'Accident', 'Panne electrique', 'Autre'].map(r => (
@@ -263,7 +282,7 @@ export default function CarSearchPage() {
 
         {/* SECTION 3: Booleans (drivable=yes) */}
         {showAdditionalSection && (
-          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-additional">
+          <section ref={additionalRef} style={{ scrollMarginTop: '80px' }} className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-additional">
             <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Informations complementaires</h2>
             <div className="space-y-4">
               {BOOLEAN_QUESTIONS.map(({ key, label }) => (
