@@ -603,20 +603,52 @@ function LeadsTab({ authHeaders }) {
   const [expanded, setExpanded] = useState(null);
   const [stats, setStats] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [garages, setGarages] = useState([]);
+
+  // ── Advanced search ──
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchFields, setSearchFields] = useState({
+    plate: '', email: '', phone: '', postal_code: '', make: '',
+    garage_id: '', date_from: '', date_to: '', is_drivable: '',
+  });
+  const updateSearch = (k, v) => setSearchFields(p => ({ ...p, [k]: v }));
 
   const load = useCallback(async () => {
-    const params = new URLSearchParams({ limit: '100' });
+    const params = new URLSearchParams({ limit: '200' });
     if (filter === 'estimated') params.set('lead_status', 'estimated');
     if (filter === 'appointed') params.set('lead_status', 'appointment_scheduled');
     if (filter === 'no_rdv') params.set('has_appointment', 'false');
+    if (search.trim()) params.set('search', search.trim());
+    // Advanced filters
+    Object.entries(searchFields).forEach(([k, v]) => {
+      if (v && v !== '') {
+        if (k === 'is_drivable') params.set(k, v === 'yes' ? 'true' : 'false');
+        else params.set(k, v);
+      }
+    });
     const r = await fetch(`${API}/api/admin/leads?${params}`, { headers: authHeaders });
     if (r.ok) { const d = await r.json(); setLeads(d.leads); setTotal(d.total); }
-    // Load stats
     const sr = await fetch(`${API}/api/admin/stats`, { headers: authHeaders });
     if (sr.ok) setStats(await sr.json());
-  }, [authHeaders, filter]);
+  }, [authHeaders, filter, search, searchFields]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load garages for filter dropdown
+  useEffect(() => {
+    fetch(`${API}/api/admin/garages`, { headers: authHeaders })
+      .then(r => r.ok ? r.json() : { garages: [] })
+      .then(d => setGarages(d.garages || []))
+      .catch(() => {});
+  }, [authHeaders]);
+
+  const clearSearch = () => {
+    setSearch('');
+    setSearchFields({ plate: '', email: '', phone: '', postal_code: '', make: '', garage_id: '', date_from: '', date_to: '', is_drivable: '' });
+  };
+
+  const hasActiveFilters = search.trim() || Object.values(searchFields).some(v => v !== '');
 
   const StatusBadge = ({ status }) => {
     const colors = {
@@ -655,26 +687,112 @@ function LeadsTab({ authHeaders }) {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-[#1a1d2e] rounded-lg p-1">
-          {[
-            { id: 'all', label: 'Tous' },
-            { id: 'estimated', label: 'Estimes' },
-            { id: 'appointed', label: 'RDV pris' },
-            { id: 'no_rdv', label: 'Sans RDV' },
-          ].map(f => (
-            <button key={f.id} onClick={() => setFilter(f.id)} data-testid={`filter-${f.id}`}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${filter === f.id ? 'bg-[#ff4605] text-white' : 'text-gray-400 hover:text-white'}`}>
-              {f.label}
-            </button>
-          ))}
-        </div>
+      {/* Search bar + Filters */}
+      <div className="space-y-3 mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-gray-500 text-xs">{total} resultat{total > 1 ? 's' : ''}</span>
-          <Button onClick={load} variant="ghost" className="text-gray-400 hover:text-white h-8 px-3 text-xs" data-testid="refresh-leads">
-            <RefreshCw className="w-3.5 h-3.5 mr-1" /> Actualiser
+          <div className="flex-1 relative">
+            <Input data-testid="search-leads" placeholder="Rechercher (nom, email, plaque, marque...)" value={search} onChange={e => setSearch(e.target.value)}
+              className="h-9 bg-[#1a1d2e] border-white/10 text-white placeholder:text-gray-600 rounded-lg pl-3 pr-8 text-sm" />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <button onClick={() => setShowSearch(!showSearch)} data-testid="toggle-advanced-search"
+            className={`h-9 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition ${showSearch ? 'bg-[#ff4605]/10 border-[#ff4605]/30 text-[#ff4605]' : 'border-white/10 text-gray-400 hover:text-white'}`}>
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Filtres
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ff4605]" />}
+          </button>
+          <Button onClick={load} variant="ghost" className="text-gray-400 hover:text-white h-9 px-3 text-xs" data-testid="refresh-leads">
+            <RefreshCw className="w-3.5 h-3.5" />
           </Button>
+        </div>
+
+        {/* Advanced search panel */}
+        {showSearch && (
+          <div className="bg-[#1a1d2e] rounded-xl border border-white/5 p-4 animate-fade-in-up" data-testid="advanced-search-panel">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Plaque</label>
+                <Input data-testid="filter-plate" placeholder="AA123BB" value={searchFields.plate} onChange={e => updateSearch('plate', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Email</label>
+                <Input data-testid="filter-email" placeholder="jean@..." value={searchFields.email} onChange={e => updateSearch('email', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Telephone</label>
+                <Input data-testid="filter-phone" placeholder="06..." value={searchFields.phone} onChange={e => updateSearch('phone', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Code postal</label>
+                <Input data-testid="filter-postal" placeholder="75011" value={searchFields.postal_code} onChange={e => updateSearch('postal_code', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" maxLength={5} />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Marque</label>
+                <Input data-testid="filter-make" placeholder="Renault" value={searchFields.make} onChange={e => updateSearch('make', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Roulant</label>
+                <select data-testid="filter-drivable" value={searchFields.is_drivable} onChange={e => updateSearch('is_drivable', e.target.value)}
+                  className="w-full h-8 px-2 bg-[#0f1117] border border-white/10 text-white rounded-lg text-xs appearance-none">
+                  <option value="">Tous</option>
+                  <option value="yes">Oui</option>
+                  <option value="no">Non</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Garage</label>
+                <select data-testid="filter-garage" value={searchFields.garage_id} onChange={e => updateSearch('garage_id', e.target.value)}
+                  className="w-full h-8 px-2 bg-[#0f1117] border border-white/10 text-white rounded-lg text-xs appearance-none">
+                  <option value="">Tous</option>
+                  {garages.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Date du</label>
+                <Input data-testid="filter-date-from" type="date" value={searchFields.date_from} onChange={e => updateSearch('date_from', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">Date au</label>
+                <Input data-testid="filter-date-to" type="date" value={searchFields.date_to} onChange={e => updateSearch('date_to', e.target.value)}
+                  className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+              <span className="text-[10px] text-gray-600">{total} resultat{total > 1 ? 's' : ''}</span>
+              {hasActiveFilters && (
+                <button onClick={clearSearch} data-testid="clear-filters" className="text-xs text-gray-400 hover:text-[#ff4605] flex items-center gap-1 transition">
+                  <X className="w-3 h-3" /> Effacer les filtres
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Status tabs */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1 bg-[#1a1d2e] rounded-lg p-1">
+            {[
+              { id: 'all', label: 'Tous' },
+              { id: 'estimated', label: 'Estimes' },
+              { id: 'appointed', label: 'RDV pris' },
+              { id: 'no_rdv', label: 'Sans RDV' },
+            ].map(f => (
+              <button key={f.id} onClick={() => setFilter(f.id)} data-testid={`filter-${f.id}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${filter === f.id ? 'bg-[#ff4605] text-white' : 'text-gray-400 hover:text-white'}`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-gray-500 text-xs">{total} resultat{total > 1 ? 's' : ''}</span>
         </div>
       </div>
 

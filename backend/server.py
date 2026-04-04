@@ -618,28 +618,65 @@ async def admin_get_leads(
     request: Request,
     limit: int = 200,
     skip: int = 0,
+    search: Optional[str] = None,
     lead_status: Optional[str] = None,
     has_appointment: Optional[bool] = None,
     garage_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    plate: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    postal_code: Optional[str] = None,
+    make: Optional[str] = None,
+    is_drivable: Optional[bool] = None,
 ):
-    """Get leads with filtering and pagination."""
+    """Get leads with advanced filtering and pagination."""
     await require_admin(request)
 
     query = {}
+
+    # Free text search across multiple fields
+    if search:
+        s = search.strip()
+        query["$or"] = [
+            {"client.firstname": {"$regex": s, "$options": "i"}},
+            {"client.lastname": {"$regex": s, "$options": "i"}},
+            {"client.email": {"$regex": s, "$options": "i"}},
+            {"client.phone": {"$regex": s, "$options": "i"}},
+            {"plate": {"$regex": s, "$options": "i"}},
+            {"vehicle.make": {"$regex": s, "$options": "i"}},
+            {"vehicle.model": {"$regex": s, "$options": "i"}},
+            {"id": {"$regex": s, "$options": "i"}},
+        ]
+
     if lead_status:
         query["lead_status"] = lead_status
     if has_appointment is True:
         query["appointment_status"] = "scheduled"
     elif has_appointment is False:
-        query["$or"] = [{"appointment_status": None}, {"appointment_status": {"$exists": False}}]
+        if "$or" in query:
+            query["$and"] = [{"$or": query.pop("$or")}, {"$or": [{"appointment_status": None}, {"appointment_status": {"$exists": False}}]}]
+        else:
+            query["$or"] = [{"appointment_status": None}, {"appointment_status": {"$exists": False}}]
     if garage_id:
         query["garage_id"] = garage_id
     if date_from:
         query.setdefault("created_at", {})["$gte"] = date_from
     if date_to:
         query.setdefault("created_at", {})["$lte"] = date_to + "T23:59:59"
+    if plate:
+        query["plate"] = {"$regex": plate.strip(), "$options": "i"}
+    if email:
+        query["client.email"] = {"$regex": email.strip(), "$options": "i"}
+    if phone:
+        query["client.phone"] = {"$regex": phone.strip(), "$options": "i"}
+    if postal_code:
+        query["client.postal_code"] = {"$regex": f"^{postal_code.strip()}"}
+    if make:
+        query["vehicle.make"] = {"$regex": make.strip(), "$options": "i"}
+    if is_drivable is not None:
+        query["is_drivable"] = is_drivable
 
     total = await db.car_leads.count_documents(query)
     leads = await db.car_leads.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
