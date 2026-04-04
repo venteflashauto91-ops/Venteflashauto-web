@@ -50,6 +50,7 @@ export default function CarSearchPage() {
   // ── Section refs for auto-scroll ──
   const additionalRef = useRef(null);
   const reasonRef = useRef(null);
+  const contactRef = useRef(null);
 
   // ── Submission ──
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +102,15 @@ export default function CarSearchPage() {
     }, 150);
     return () => clearTimeout(timer);
   }, [drivable]);
+
+  // Auto-scroll to contact section after all booleans answered
+  useEffect(() => {
+    if (!allBoolsAnswered || drivable !== 'yes' || !contactRef.current) return;
+    const timer = setTimeout(() => {
+      contactRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [allBoolsAnswered, drivable]);
 
   // Photos section: visible after booleans (drivable) or reason (non-drivable)
   const showPhotosSection = fc('photos').enabled && ((drivable === 'yes' && allBoolsAnswered) || (drivable === 'no' && reason));
@@ -329,7 +339,7 @@ export default function CarSearchPage() {
 
         {/* SECTION 5: Contact */}
         {showContactSection && (
-          <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-contact">
+          <section ref={contactRef} style={{ scrollMarginTop: '80px' }} className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-contact">
             <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Vos coordonnees</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
