@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, Loader2, MapPin, Clock, Phone, Calendar, Car, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { getLeadResult, getGarages, getAppointmentConfig, getAvailableSlots, bookAppointment, trackEvent } from '@/lib/api';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
@@ -30,6 +31,10 @@ export default function EstimationResultPage() {
   const [bookingError, setBookingError] = useState('');
   const [bookingResult, setBookingResult] = useState(null);
 
+  // ── Contact RDV ──
+  const [rdvContact, setRdvContact] = useState({ firstname: '', lastname: '', phone: '' });
+  const updateRdvContact = (k, v) => setRdvContact(p => ({ ...p, [k]: v }));
+
   // ── Load lead data from DB ──
   useEffect(() => {
     if (!leadId) { setError('Lien invalide'); setLoading(false); return; }
@@ -37,6 +42,9 @@ export default function EstimationResultPage() {
       try {
         const data = await getLeadResult(leadId);
         setLead(data);
+        // Pre-fill RDV contact from lead data
+        const c = data.client || {};
+        setRdvContact({ firstname: c.firstname || '', lastname: c.lastname || '', phone: c.phone || '' });
         // Check if already booked
         if (data.lead_status === 'appointment_scheduled') {
           setBooked(true);
@@ -88,8 +96,10 @@ export default function EstimationResultPage() {
   };
 
   // ── Book appointment ──
+  const rdvContactFilled = rdvContact.firstname.trim() && rdvContact.lastname.trim() && rdvContact.phone.trim();
+
   const handleBookAppointment = async () => {
-    if (!selectedGarage || !selectedDate || !selectedSlot) return;
+    if (!selectedGarage || !selectedDate || !selectedSlot || !rdvContactFilled) return;
     setBooking(true);
     setBookingError('');
     try {
@@ -98,6 +108,9 @@ export default function EstimationResultPage() {
         garage_name: selectedGarage.name,
         appointment_date: selectedDate,
         appointment_time: selectedSlot,
+        client_firstname: rdvContact.firstname.trim(),
+        client_lastname: rdvContact.lastname.trim(),
+        client_phone: rdvContact.phone.trim(),
       });
       setBooked(true);
       setBookingResult(result);
@@ -290,9 +303,32 @@ export default function EstimationResultPage() {
               </section>
             )}
 
-            {/* SECTION 4: Recap + Confirm */}
+            {/* SECTION 4: Contact + Recap + Confirm */}
             {selectedGarage && selectedDate && selectedSlot && (
               <section className="bg-white rounded-xl border border-gray-100 shadow-md p-5 md:p-6 animate-fade-in-up" data-testid="section-confirm-rdv">
+                {/* Contact fields */}
+                <h2 className="font-['Mulish'] text-lg font-[800] text-[#2B3A67] mb-4">Vos coordonnees pour le rendez-vous</h2>
+                <div className="space-y-3 mb-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-bold text-[#2B3A67] mb-1.5">Prenom *</label>
+                      <Input data-testid="rdv-firstname" placeholder="Jean" value={rdvContact.firstname} onChange={(e) => updateRdvContact('firstname', e.target.value)}
+                        className="h-11 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-[#2B3A67] mb-1.5">Nom *</label>
+                      <Input data-testid="rdv-lastname" placeholder="Dupont" value={rdvContact.lastname} onChange={(e) => updateRdvContact('lastname', e.target.value)}
+                        className="h-11 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-[#2B3A67] mb-1.5">Telephone portable *</label>
+                    <Input data-testid="rdv-phone" type="tel" placeholder="06 12 34 56 78" value={rdvContact.phone} onChange={(e) => updateRdvContact('phone', e.target.value)}
+                      className="h-11 border-2 border-gray-200 focus:border-[#ff4605] rounded-xl" />
+                  </div>
+                </div>
+
+                {/* Recap */}
                 <div className="bg-[#F3F4F6] rounded-xl p-4 mb-5" data-testid="appointment-recap">
                   <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Recapitulatif de votre rendez-vous</p>
                   <div className="flex items-center gap-3 text-sm text-[#2B3A67]">
@@ -316,7 +352,7 @@ export default function EstimationResultPage() {
                   </div>
                 )}
 
-                <Button data-testid="btn-confirm-rdv" onClick={handleBookAppointment} disabled={booking}
+                <Button data-testid="btn-confirm-rdv" onClick={handleBookAppointment} disabled={booking || !rdvContactFilled}
                   className="w-full h-14 bg-[#ff4605] hover:bg-[#E65200] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#ff4605]/30 active:scale-95 transition-all disabled:opacity-50">
                   {booking ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
                   {booking ? 'Reservation en cours...' : 'Confirmer le rendez-vous'}

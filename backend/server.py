@@ -89,6 +89,9 @@ class AppointmentBookRequest(BaseModel):
     garage_name: str
     appointment_date: str
     appointment_time: str
+    client_firstname: str = ""
+    client_lastname: str = ""
+    client_phone: str = ""
 
 class RangeCreate(BaseModel):
     start_value: float
@@ -351,19 +354,26 @@ async def book_appointment(lead_id: str, req: AppointmentBookRequest, request: R
         "created_at": now,
     })
 
-    # ── Update lead with appointment info ──
+    # ── Update lead with appointment info + contact ──
+    update_fields = {
+        "lead_status": "appointment_scheduled",
+        "garage_id": req.garage_id,
+        "garage_name": req.garage_name,
+        "appointment_date": req.appointment_date,
+        "appointment_time": req.appointment_time,
+        "appointment_datetime": appointment_datetime,
+        "appointment_status": "scheduled",
+        "updated_at": now,
+    }
+    # Update client contact if provided
+    if req.client_firstname or req.client_lastname or req.client_phone:
+        update_fields["client.firstname"] = req.client_firstname or lead.get("client", {}).get("firstname", "")
+        update_fields["client.lastname"] = req.client_lastname or lead.get("client", {}).get("lastname", "")
+        update_fields["client.phone"] = req.client_phone or lead.get("client", {}).get("phone", "")
+
     await db.car_leads.update_one(
         {"id": lead_id},
-        {"$set": {
-            "lead_status": "appointment_scheduled",
-            "garage_id": req.garage_id,
-            "garage_name": req.garage_name,
-            "appointment_date": req.appointment_date,
-            "appointment_time": req.appointment_time,
-            "appointment_datetime": appointment_datetime,
-            "appointment_status": "scheduled",
-            "updated_at": now,
-        }}
+        {"$set": update_fields}
     )
 
     logger.info(f"Appointment booked: lead={lead_id}, garage={req.garage_id}, date={req.appointment_date} {req.appointment_time}")
