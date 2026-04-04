@@ -87,14 +87,11 @@ export default function CarSearchPage() {
     if (!drivable) return;
     const target = drivable === 'yes' ? additionalRef.current : reasonRef.current;
     if (!target) return;
-    // Wait for DOM render
-    requestAnimationFrame(() => {
-      const rect = target.getBoundingClientRect();
-      // Only scroll if section is not already visible
-      if (rect.top > window.innerHeight || rect.top < 0) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
+    // setTimeout ensures the DOM is fully laid out before scrolling
+    const timer = setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => clearTimeout(timer);
   }, [drivable]);
 
   // Photos section: visible after booleans (drivable) or reason (non-drivable)
