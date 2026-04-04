@@ -191,17 +191,17 @@ function FormConfigTab({ authHeaders }) {
                   <p className="text-white text-sm font-medium">{label}</p>
                   <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 ml-4">
+                <div className="flex items-center gap-4 shrink-0 ml-4">
                   {/* Required toggle */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Obligatoire</span>
+                    <span className="text-xs text-gray-500 w-16 text-right">Obligatoire</span>
                     <button
                       data-testid={`toggle-required-${key}`}
                       onClick={() => field.enabled && toggleField(key, 'required')}
                       disabled={!field.enabled}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${field.required && field.enabled ? 'bg-[#ff4605]' : 'bg-gray-700'} ${!field.enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${field.required && field.enabled ? 'bg-[#ff4605]' : 'bg-gray-700'} ${!field.enabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${field.required && field.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${field.required && field.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
                   {/* Enabled toggle */}
@@ -210,9 +210,9 @@ function FormConfigTab({ authHeaders }) {
                     <button
                       data-testid={`toggle-enabled-${key}`}
                       onClick={() => toggleField(key, 'enabled')}
-                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${field.enabled ? 'bg-green-500' : 'bg-gray-700'}`}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${field.enabled ? 'bg-green-500' : 'bg-gray-700'}`}
                     >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${field.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${field.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                   </div>
                 </div>
