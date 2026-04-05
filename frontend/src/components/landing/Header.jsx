@@ -18,7 +18,7 @@ export default function Header() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 400);
+    const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -31,6 +31,7 @@ export default function Header() {
         background: scrolled ? 'rgba(255,255,255,0.97)' : 'rgba(43,58,103,0.85)',
         backdropFilter: 'blur(12px)',
         borderBottom: scrolled ? '1px solid rgba(0,0,0,0.06)' : '1px solid rgba(255,255,255,0.08)',
+        boxShadow: scrolled ? '0 2px 16px rgba(0,0,0,0.08)' : 'none',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 md:h-20">
