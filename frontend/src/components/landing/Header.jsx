@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_car-buyback-1/artifacts/ihv05djw_venteflashauto_logo.webp';
 
 const navLinks = [
-  { label: 'Accueil', href: '#' },
+  { label: 'Accueil', href: '/' },
+  { label: 'Rachat voiture', href: '/rachat-voiture' },
   { label: 'Rachat Cash', href: '#comment-ca-marche' },
   { label: 'FAQ', href: '#faq' },
   { label: 'Contact', href: '#centres' },
@@ -50,15 +51,15 @@ export default function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-          {navLinks.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className={`text-sm font-semibold transition-colors ${scrolled ? 'text-[#2B3A67] hover:text-[#ff4605]' : 'text-white/90 hover:text-white'}`}
-            >
-              {label}
-            </a>
-          ))}
+          {navLinks.map(({ label, href }) => {
+            const isInternal = href.startsWith('/');
+            const cls = `text-sm font-semibold transition-colors ${scrolled ? 'text-[#2B3A67] hover:text-[#ff4605]' : 'text-white/90 hover:text-white'}`;
+            return isInternal ? (
+              <Link key={label} to={href} className={cls}>{label}</Link>
+            ) : (
+              <a key={label} href={href} className={cls}>{label}</a>
+            );
+          })}
           <Button
             data-testid="header-estimate-btn"
             onClick={() => navigate('/estimation')}
@@ -85,9 +86,14 @@ export default function Header() {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 shadow-lg" data-testid="mobile-menu">
           <div className="px-4 py-4 space-y-3">
-            {navLinks.map(({ label, href }) => (
-              <a key={label} href={href} className="block text-sm font-semibold text-[#2B3A67]" onClick={() => setMenuOpen(false)}>{label}</a>
-            ))}
+            {navLinks.map(({ label, href }) => {
+              const isInternal = href.startsWith('/');
+              return isInternal ? (
+                <Link key={label} to={href} className="block text-sm font-semibold text-[#2B3A67]" onClick={() => setMenuOpen(false)}>{label}</Link>
+              ) : (
+                <a key={label} href={href} className="block text-sm font-semibold text-[#2B3A67]" onClick={() => setMenuOpen(false)}>{label}</a>
+              );
+            })}
             <Button
               data-testid="mobile-estimate-btn"
               onClick={() => { setMenuOpen(false); navigate('/estimation'); }}
