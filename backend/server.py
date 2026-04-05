@@ -836,6 +836,70 @@ async def admin_test_autobiz(request: Request):
 async def root():
     return {"status": "ok", "autobiz_configured": autobiz_service.is_configured()}
 
+# ── SEO PAGES (public) ──────────────────────────────────────────────
+
+@api_router.get("/seo-pages/{slug:path}")
+async def get_seo_page(slug: str):
+    """Public endpoint to load SEO page content by slug."""
+    clean_slug = slug.strip("/") or "rachat-voiture"
+    page = await db.seo_pages.find_one({"slug": clean_slug, "active": True}, {"_id": 0})
+    if not page:
+        raise HTTPException(404, "Page non trouvee")
+    return page
+
+@api_router.get("/seo-pages-list")
+async def list_seo_pages():
+    """List all active SEO pages (for sitemap / internal linking)."""
+    pages = await db.seo_pages.find({"active": True}, {"_id": 0, "slug": 1, "type": 1, "city_name": 1, "department_name": 1, "seo_title": 1}).to_list(500)
+    return {"pages": pages}
+
+# ── SEO PAGES (admin) ───────────────────────────────────────────────
+
+@api_router.get("/admin/seo-pages")
+async def admin_list_seo_pages(request: Request):
+    await require_admin(request)
+    pages = await db.seo_pages.find({}, {"_id": 0}).sort("type", 1).to_list(500)
+    return {"pages": pages}
+
+@api_router.get("/admin/seo-pages/{page_id}")
+async def admin_get_seo_page(page_id: str, request: Request):
+    await require_admin(request)
+    page = await db.seo_pages.find_one({"id": page_id}, {"_id": 0})
+    if not page:
+        raise HTTPException(404, "Page non trouvee")
+    return page
+
+@api_router.post("/admin/seo-pages")
+async def admin_create_seo_page(request: Request):
+    await require_admin(request)
+    body = await request.json()
+    body["id"] = str(uuid.uuid4())
+    # Check slug uniqueness
+    existing = await db.seo_pages.find_one({"slug": body.get("slug", "")})
+    if existing:
+        raise HTTPException(409, "Ce slug existe deja")
+    await db.seo_pages.insert_one(body)
+    return {"id": body["id"], "created": True}
+
+@api_router.put("/admin/seo-pages/{page_id}")
+async def admin_update_seo_page(page_id: str, request: Request):
+    await require_admin(request)
+    body = await request.json()
+    body.pop("_id", None)
+    body.pop("id", None)
+    result = await db.seo_pages.update_one({"id": page_id}, {"$set": body})
+    if result.matched_count == 0:
+        raise HTTPException(404, "Page non trouvee")
+    return {"updated": True}
+
+@api_router.delete("/admin/seo-pages/{page_id}")
+async def admin_delete_seo_page(page_id: str, request: Request):
+    await require_admin(request)
+    result = await db.seo_pages.delete_one({"id": page_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Page non trouvee")
+    return {"deleted": True}
+
 # ── App setup ────────────────────────────────────────────────────────
 
 app.include_router(api_router)
@@ -875,6 +939,13 @@ async def startup():
         logger.info(f"Seeded {len(default_ranges)} default ranges")
 
     logger.info(f"Autobiz configured: {autobiz_service.is_configured()}")
+
+    # Seed SEO pages if empty
+    seo_count = await db.seo_pages.count_documents({})
+    if seo_count == 0:
+        from services.seo_seed import ALL_PAGES
+        await db.seo_pages.insert_many(ALL_PAGES)
+        logger.info(f"Seeded {len(ALL_PAGES)} SEO pages")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

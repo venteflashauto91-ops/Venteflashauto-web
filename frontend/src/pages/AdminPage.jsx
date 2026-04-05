@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal } from 'lucide-react';
+import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -70,6 +70,7 @@ function AdminPage() {
             { id: 'garages', label: 'Garages', icon: MapPin },
             { id: 'appointments', label: 'RDV', icon: Calendar },
             { id: 'leads', label: 'Leads', icon: Users },
+            { id: 'seo', label: 'SEO Pages', icon: Globe },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)} data-testid={`tab-${id}`}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition ${tab === id ? 'bg-[#ff4605] text-white' : 'text-gray-400 hover:text-white'}`}>
@@ -84,6 +85,7 @@ function AdminPage() {
         {tab === 'garages' && <GaragesTab authHeaders={authHeaders} />}
         {tab === 'appointments' && <AppointmentsTab authHeaders={authHeaders} />}
         {tab === 'leads' && <LeadsTab authHeaders={authHeaders} />}
+        {tab === 'seo' && <SeoTab authHeaders={authHeaders} />}
       </div>
     </div>
   );
@@ -856,6 +858,209 @@ function Section({ title, desc, children }) {
       <h3 className="font-['Mulish'] font-bold text-white mb-1">{title}</h3>
       {desc && <p className="text-xs text-gray-500 mb-4">{desc}</p>}
       {children}
+    </div>
+  );
+}
+
+/* ── SEO Pages Tab ── */
+function SeoTab({ authHeaders }) {
+  const [pages, setPages] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await fetch(`${API}/api/admin/seo-pages`, { headers: authHeaders });
+    if (r.ok) { const d = await r.json(); setPages(d.pages || []); }
+  }, [authHeaders]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const isNew = !editing.id;
+    const url = isNew ? `${API}/api/admin/seo-pages` : `${API}/api/admin/seo-pages/${editing.id}`;
+    const method = isNew ? 'POST' : 'PUT';
+    const r = await fetch(url, { method, headers: { ...authHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify(editing) });
+    setSaving(false);
+    if (r.ok) { setEditing(null); load(); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Supprimer cette page SEO ?')) return;
+    await fetch(`${API}/api/admin/seo-pages/${id}`, { method: 'DELETE', headers: authHeaders });
+    load();
+  };
+
+  const TYPE_LABELS = { national: 'National', department: 'Departement', city: 'Ville' };
+  const TYPE_COLORS = { national: 'text-purple-400 bg-purple-500/10 border-purple-500/20', department: 'text-blue-400 bg-blue-500/10 border-blue-500/20', city: 'text-green-400 bg-green-500/10 border-green-500/20' };
+
+  // Editing form
+  if (editing) {
+    return (
+      <div className="max-w-4xl">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-white font-bold text-lg">{editing.id ? 'Modifier la page' : 'Nouvelle page SEO'}</h2>
+          <div className="flex gap-2">
+            <Button onClick={() => setEditing(null)} variant="ghost" className="text-gray-400 h-8 text-xs">Annuler</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-[#ff4605] text-white h-8 text-xs px-4" data-testid="seo-save">
+              {saving ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />} Sauvegarder
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <SeoField label="Slug" value={editing.slug} onChange={v => setEditing({ ...editing, slug: v })} />
+            <div>
+              <label className="text-[10px] text-gray-500 mb-1 block uppercase">Type</label>
+              <select value={editing.type || 'city'} onChange={e => setEditing({ ...editing, type: e.target.value })}
+                className="w-full h-8 px-2 bg-[#0f1117] border border-white/10 text-white rounded-lg text-xs appearance-none">
+                <option value="national">National</option>
+                <option value="department">Departement</option>
+                <option value="city">Ville</option>
+              </select>
+            </div>
+            <SeoField label="Nom ville" value={editing.city_name} onChange={v => setEditing({ ...editing, city_name: v })} />
+            <SeoField label="Dept slug" value={editing.department_slug} onChange={v => setEditing({ ...editing, department_slug: v })} />
+            <SeoField label="Dept nom" value={editing.department_name} onChange={v => setEditing({ ...editing, department_name: v })} />
+            <SeoField label="Dept code" value={editing.department_code} onChange={v => setEditing({ ...editing, department_code: v })} />
+          </div>
+          <SeoField label="SEO Title" value={editing.seo_title} onChange={v => setEditing({ ...editing, seo_title: v })} full />
+          <SeoField label="Meta Description" value={editing.meta_description} onChange={v => setEditing({ ...editing, meta_description: v })} full />
+          <SeoField label="H1" value={editing.h1} onChange={v => setEditing({ ...editing, h1: v })} full />
+          <SeoArea label="Introduction" value={editing.intro} onChange={v => setEditing({ ...editing, intro: v })} />
+          <SeoField label="CTA Text" value={editing.cta_text} onChange={v => setEditing({ ...editing, cta_text: v })} full />
+          <SeoField label="Canonical Override (optionnel)" value={editing.canonical_override} onChange={v => setEditing({ ...editing, canonical_override: v })} full />
+          <div className="grid grid-cols-2 gap-3">
+            <ToggleSmall label="Actif" checked={editing.active !== false} onChange={v => setEditing({ ...editing, active: v })} />
+            <ToggleSmall label="Noindex" checked={!!editing.noindex} onChange={v => setEditing({ ...editing, noindex: v })} />
+            <ToggleSmall label="Bloc confiance" checked={editing.trust_block !== false} onChange={v => setEditing({ ...editing, trust_block: v })} />
+            <ToggleSmall label="Bloc vehicules" checked={editing.vehicles_block !== false} onChange={v => setEditing({ ...editing, vehicles_block: v })} />
+          </div>
+          {/* Sections */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400 font-bold uppercase">Sections</label>
+              <button onClick={() => setEditing({ ...editing, sections: [...(editing.sections || []), { title: '', content: '' }] })} className="text-[#ff4605] text-xs">+ Ajouter</button>
+            </div>
+            {(editing.sections || []).map((s, i) => (
+              <div key={i} className="bg-[#0f1117] rounded-lg p-3 mb-2 border border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-500">Section {i + 1}</span>
+                  <button onClick={() => setEditing({ ...editing, sections: editing.sections.filter((_, j) => j !== i) })} className="text-red-400 text-xs">Supprimer</button>
+                </div>
+                <Input placeholder="Titre" value={s.title} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], title: e.target.value }; setEditing({ ...editing, sections: ns }); }}
+                  className="h-7 bg-transparent border-white/10 text-white rounded text-xs mb-2" />
+                <textarea placeholder="Contenu" value={s.content} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], content: e.target.value }; setEditing({ ...editing, sections: ns }); }}
+                  className="w-full min-h-[60px] bg-transparent border border-white/10 text-white rounded text-xs p-2 resize-y" />
+              </div>
+            ))}
+          </div>
+          {/* FAQ */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400 font-bold uppercase">FAQ</label>
+              <button onClick={() => setEditing({ ...editing, faq: [...(editing.faq || []), { question: '', answer: '' }] })} className="text-[#ff4605] text-xs">+ Ajouter</button>
+            </div>
+            {(editing.faq || []).map((f, i) => (
+              <div key={i} className="bg-[#0f1117] rounded-lg p-3 mb-2 border border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-500">FAQ {i + 1}</span>
+                  <button onClick={() => setEditing({ ...editing, faq: editing.faq.filter((_, j) => j !== i) })} className="text-red-400 text-xs">Supprimer</button>
+                </div>
+                <Input placeholder="Question" value={f.question} onChange={e => { const nf = [...editing.faq]; nf[i] = { ...nf[i], question: e.target.value }; setEditing({ ...editing, faq: nf }); }}
+                  className="h-7 bg-transparent border-white/10 text-white rounded text-xs mb-2" />
+                <textarea placeholder="Reponse" value={f.answer} onChange={e => { const nf = [...editing.faq]; nf[i] = { ...nf[i], answer: e.target.value }; setEditing({ ...editing, faq: nf }); }}
+                  className="w-full min-h-[50px] bg-transparent border border-white/10 text-white rounded text-xs p-2 resize-y" />
+              </div>
+            ))}
+          </div>
+          {/* Nearby cities / cities_list */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400 font-bold uppercase">Villes proches / liees</label>
+              <button onClick={() => {
+                const key = editing.type === 'department' ? 'cities_list' : 'nearby_cities';
+                setEditing({ ...editing, [key]: [...(editing[key] || []), { slug: '', name: '' }] });
+              }} className="text-[#ff4605] text-xs">+ Ajouter</button>
+            </div>
+            {(editing.type === 'department' ? editing.cities_list : editing.nearby_cities || [])?.map((c, i) => {
+              const key = editing.type === 'department' ? 'cities_list' : 'nearby_cities';
+              return (
+                <div key={i} className="flex gap-2 mb-2">
+                  <Input placeholder="Slug" value={c.slug} onChange={e => { const nc = [...editing[key]]; nc[i] = { ...nc[i], slug: e.target.value }; setEditing({ ...editing, [key]: nc }); }}
+                    className="h-7 bg-[#0f1117] border-white/10 text-white rounded text-xs flex-1" />
+                  <Input placeholder="Nom affiche" value={c.name} onChange={e => { const nc = [...editing[key]]; nc[i] = { ...nc[i], name: e.target.value }; setEditing({ ...editing, [key]: nc }); }}
+                    className="h-7 bg-[#0f1117] border-white/10 text-white rounded text-xs flex-1" />
+                  <button onClick={() => { const nc = editing[key].filter((_, j) => j !== i); setEditing({ ...editing, [key]: nc }); }} className="text-red-400 text-xs px-2">X</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // List view
+  return (
+    <div className="max-w-5xl">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-white font-bold text-lg">{pages.length} page{pages.length > 1 ? 's' : ''} SEO</h2>
+        <div className="flex gap-2">
+          <Button onClick={load} variant="ghost" className="text-gray-400 h-8 text-xs"><RefreshCw className="w-3.5 h-3.5" /></Button>
+          <Button onClick={() => setEditing({ slug: '', type: 'city', city_name: '', department_slug: 'essonne', department_name: 'Essonne', department_code: '91', seo_title: '', meta_description: '', h1: '', intro: '', sections: [{ title: '', content: '' }], faq: [{ question: '', answer: '' }], nearby_cities: [], cta_text: '', trust_block: true, vehicles_block: true, active: true, noindex: false, canonical_override: '' })}
+            className="bg-[#ff4605] text-white h-8 text-xs px-3" data-testid="seo-new-page">
+            <Plus className="w-3.5 h-3.5 mr-1" /> Nouvelle page
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {pages.map(p => (
+          <div key={p.id} className="bg-[#1a1d2e] rounded-lg border border-white/5 px-4 py-3 flex items-center gap-3" data-testid={`seo-page-${p.slug}`}>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${TYPE_COLORS[p.type] || ''}`}>{TYPE_LABELS[p.type] || p.type}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">{p.h1 || p.seo_title || p.slug}</p>
+              <p className="text-gray-500 text-xs truncate">/rachat-voiture{p.slug !== 'rachat-voiture' ? '/' + p.slug : ''}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {!p.active && <span className="text-[10px] text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded">Inactif</span>}
+              {p.noindex && <span className="text-[10px] text-yellow-400 border border-yellow-500/20 px-1.5 py-0.5 rounded">Noindex</span>}
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <Button onClick={() => setEditing({ ...p })} variant="ghost" className="text-gray-400 hover:text-white h-7 w-7 p-0" data-testid={`seo-edit-${p.slug}`}><Edit2 className="w-3.5 h-3.5" /></Button>
+              <Button onClick={() => handleDelete(p.id)} variant="ghost" className="text-gray-400 hover:text-red-400 h-7 w-7 p-0"><Trash2 className="w-3.5 h-3.5" /></Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SeoField({ label, value, onChange, full }) {
+  return (
+    <div className={full ? 'col-span-full' : ''}>
+      <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">{label}</label>
+      <Input value={value || ''} onChange={e => onChange(e.target.value)} className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+    </div>
+  );
+}
+function SeoArea({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="text-[10px] text-gray-500 mb-1 block uppercase tracking-wide">{label}</label>
+      <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="w-full min-h-[80px] bg-[#0f1117] border border-white/10 text-white rounded-lg text-xs p-2 resize-y" />
+    </div>
+  );
+}
+function ToggleSmall({ label, checked, onChange }) {
+  return (
+    <div className="flex items-center justify-between bg-[#0f1117] rounded-lg border border-white/5 px-3 py-2">
+      <span className="text-xs text-gray-400">{label}</span>
+      <button onClick={() => onChange(!checked)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-green-500' : 'bg-gray-700'}`}>
+        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`}
+          style={{ transform: checked ? 'translateX(18px)' : 'translateX(2px)' }} />
+      </button>
     </div>
   );
 }

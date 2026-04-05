@@ -6,6 +6,7 @@ import CarSearchPage from "./pages/CarSearchPage";
 import EstimationResultPage from "./pages/EstimationResultPage";
 import CarEstimationPage2 from "./pages/CarEstimationPage2";
 import AdminPage from "./pages/AdminPage";
+import SeoLocalPage from "./pages/SeoLocalPage";
 
 function App() {
   return (
@@ -17,6 +18,8 @@ function App() {
         <Route path="/car-estimation-page-2" element={<CarEstimationPage2 />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/estimation" element={<CarSearchPage />} />
+        <Route path="/rachat-voiture" element={<SeoLocalPage />} />
+        <Route path="/rachat-voiture/:slug" element={<SeoLocalPage />} />
       </Routes>
     </BrowserRouter>
   );
