@@ -16,7 +16,7 @@ Site web de reprise de vehicules pour particuliers. Estimation en ligne via plaq
 ### Flow Non-Roulant
 /car-search → vehicule → motif → photos → client → "Obtenir le prix" → POST /api/leads/estimate → redirect /car-estimation-page-2?lead_id=xxx
 
-## SEO Local Architecture (NEW)
+## SEO Local Architecture
 ### Structure
 - /rachat-voiture — page nationale
 - /rachat-voiture/essonne — page departement
@@ -31,16 +31,23 @@ Site web de reprise de vehicules pour particuliers. Estimation en ligne via plaq
 6. /rachat-voiture/epinay-sur-orge
 7. /rachat-voiture/le-plessis-pate
 
-### Features SEO
-- Template unique SeoLocalPage.jsx (national/dept/city)
-- Contenu unique par page en MongoDB (collection seo_pages)
-- react-helmet-async: title, meta description, canonical, noindex
-- Schema FAQ (JSON-LD application/ld+json)
-- Breadcrumbs dynamiques
-- Maillage interne: villes proches, lien departement, lien national
-- 3 CTAs par page (hero, mid-page, final)
-- Bloc rassurance + vehicules recemment rachetes
-- Admin CRUD complet (slug, type, sections, FAQ, villes proches, noindex, canonical)
+### SEO Page Design (v2 - Redesign Complete)
+- **Modular components** in /app/frontend/src/components/seo/
+- **SeoHero**: Dynamic background image (hero_image from DB, fallback Unsplash), overlay, H1, CTA, micro-reassurance
+- **SeoSection**: Alternating 2-column layout (text/image) when section_images available, full-width text otherwise
+- **SeoCtaBlock**: Reusable CTA with "Estimer ma voiture gratuitement en 2 minutes" + sub-bullets, 3 positions (hero, mid, final)
+- **SeoSteps**: "Comment ca marche" 3-step visual block (Estimation, RDV, Paiement)
+- **SeoTrustStats**: Trust block with numbers (+500, 48h, 100%, Tous) + icons
+- **SeoVehicleGallery**: Vehicle cards with image, model, city, delay (gallery_vehicles from DB, defaults fallback)
+- **SeoFaq**: Animated accordion with icon transitions, schema FAQ preserved
+- **SeoNearbyCities**: City links, department link, optional city_image
+
+### Image Management
+- **Upload endpoint**: POST /api/admin/seo-upload (Pillow WebP conversion, max 1200px, quality 80)
+- **Storage**: Emergent Object Storage, served via /api/files/
+- **DB fields**: hero_image, city_image, section_images[], gallery_vehicles[]
+- **Admin UI**: SeoImageUpload component with upload, preview, replace, delete
+- **Security**: Auth required, type validation (jpg/png/webp), max 5MB
 
 ## Completed Features
 - [x] Landing page
@@ -60,6 +67,9 @@ Site web de reprise de vehicules pour particuliers. Estimation en ligne via plaq
 - [x] Recherche avancee leads (9 criteres + texte libre)
 - [x] Architecture SEO locale complete (7 pages, template, admin CRUD)
 - [x] Header sticky avec transition scroll
+- [x] SEO pages redesign complet (8 composants modulaires)
+- [x] Image upload + WebP conversion pour SEO pages
+- [x] Admin gestion images SEO (hero, city, section, gallery vehicles)
 
 ## Backlog
 - P1: Activer webhook reel N8N
@@ -67,3 +77,5 @@ Site web de reprise de vehicules pour particuliers. Estimation en ligne via plaq
 - P2: Email confirmation RDV
 - P2: Connexion client et suivi vente (V2)
 - P2: Ajouter plus de villes SEO (scalable via admin)
+- P3: Refactoring server.py en routes separees
+- P3: Refactoring AdminPage.jsx en sous-composants
