@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal, Globe } from 'lucide-react';
+import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal, Globe, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -894,6 +894,94 @@ function SeoTab({ authHeaders }) {
   const TYPE_LABELS = { national: 'National', department: 'Departement', city: 'Ville' };
   const TYPE_COLORS = { national: 'text-purple-400 bg-purple-500/10 border-purple-500/20', department: 'text-blue-400 bg-blue-500/10 border-blue-500/20', city: 'text-green-400 bg-green-500/10 border-green-500/20' };
 
+  // ── City page generator ──
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [gen, setGen] = useState({ city: '', deptSlug: 'essonne', deptName: 'Essonne', deptCode: '91', nearby: '' });
+
+  const generateCityPage = () => {
+    const city = gen.city.trim();
+    if (!city) return;
+    const slug = city.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const nearbyList = gen.nearby.split(',').map(n => n.trim()).filter(Boolean).map(n => ({
+      slug: n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      name: n,
+    }));
+
+    // Varied sentence patterns
+    const intros = [
+      `Vous souhaitez vendre votre voiture a ${city} ? Vente Flash Auto vous propose un service de rachat rapide et transparent. Situee dans le departement de ${gen.deptName}, ${city} beneficie de notre reseau de garages partenaires pour une reprise sans tracas. Obtenez une estimation gratuite en quelques clics et finalisez la vente en toute simplicite.`,
+      `Habitants de ${city}, vendez votre vehicule simplement grace a Vente Flash Auto. Notre plateforme de rachat automobile est disponible dans ${gen.deptName} et vous permet d'obtenir un prix juste en moins de 2 minutes. Fini les petites annonces, fini les negociations : nous nous occupons de tout.`,
+      `${city}, dans le ${gen.deptCode}, est desormais couverte par le service Vente Flash Auto. Que vous ayez une citadine, un SUV ou un utilitaire, notre service de rachat vous garantit une estimation gratuite et une reprise rapide dans un centre partenaire proche de chez vous.`,
+    ];
+    const s1Contents = [
+      `La vente de votre vehicule a ${city} se fait en 3 etapes simples. Commencez par entrer votre plaque d'immatriculation pour obtenir une estimation instantanee. Ensuite, choisissez un creneau dans notre garage partenaire le plus proche. Enfin, presentez votre vehicule, validez le prix et recevez votre paiement sous 48 heures.`,
+      `Vendre votre voiture depuis ${city} n'a jamais ete aussi simple. Saisissez votre immatriculation, recevez une offre basee sur le marche, puis rendez-vous dans un centre proche pour finaliser la transaction. Le processus complet peut etre fait en moins de 48h.`,
+      `Depuis ${city}, vendez votre auto en 3 etapes claires. Estimez gratuitement en ligne, prenez rendez-vous dans un centre du ${gen.deptCode}, et finalisez la vente avec paiement rapide par virement securise.`,
+    ];
+    const s2Contents = [
+      `Le prix de rachat de votre vehicule depend de sa marque, son modele, son annee, son kilometrage et son etat. A ${city}, nous evaluons tous les types de vehicules. Notre estimation en ligne est gratuite, sans engagement, et basee sur les prix reels du marche automobile.`,
+      `Chaque vehicule est unique. A ${city}, les proprietaires nous confient aussi bien des citadines que des vehicules familiaux ou des utilitaires. Notre algorithme calcule un prix competitif base sur les tendances actuelles du marche et la cote Autobiz.`,
+      `La valeur de votre voiture a ${city} est calculee selon plusieurs criteres : marque, modele, annee, kilometrage et etat general. Notre estimation gratuite vous donne un prix fiable en moins de 2 minutes, base sur les donnees du marche en temps reel.`,
+    ];
+    const s3Contents = [
+      `Voiture d'occasion, vehicule avec fort kilometrage, voiture en panne, vehicule accidente ou sans controle technique... A ${city}, nous etudions chaque demande. Meme si votre voiture ne roule plus, demandez une estimation adaptee a votre situation.`,
+      `Reprise de voiture d'occasion recente ou ancienne, vehicule diesel ou essence, voiture electrique, auto avec plus de 200 000 km, vehicule en panne... A ${city}, aucun cas n'est exclu. Tentez l'estimation, vous pourriez etre surpris par notre offre.`,
+      `Vehicule d'occasion classique, auto immobilisee depuis longtemps, voiture accidentee non reparee, vehicule sans CT a jour... A ${city} comme dans tout le ${gen.deptCode}, nous trouvons une solution pour chaque situation de reprise automobile.`,
+    ];
+    const s4Contents = [
+      `Estimation rapide en 2 minutes depuis chez vous. Service 100% gratuit et sans engagement. Paiement securise sous 24 a 48h. Accompagnement personnalise. Garages partenaires accessibles depuis ${city}. Expertise locale et connaissance du marche de ${gen.deptName}.`,
+      `Un service de proximite accessible depuis ${city}. Une estimation fiable en 2 minutes. Aucune obligation d'accepter notre offre. Un processus transparent du debut a la fin. Paiement par virement sous 48h. Des conseillers disponibles pour vous guider.`,
+      `Proximite : des centres proches de ${city}. Rapidite : estimation en 2 minutes, vente en 48h. Transparence : pas de frais caches. Liberte : acceptez ou refusez sans consequence. Expertise : des centaines de vehicules deja rachetes dans le ${gen.deptCode}.`,
+    ];
+    const nearbyNames = nearbyList.map(n => n.name).join(', ');
+    const s5Content = nearbyNames
+      ? `${city} est situee dans le departement de ${gen.deptName}, a proximite de ${nearbyNames}. Notre reseau de garages partenaires couvre l'ensemble du departement. Decouvrez nos pages dediees aux villes voisines pour trouver le centre le plus proche de chez vous.`
+      : `${city} est situee dans le departement de ${gen.deptName}. Notre couverture locale vous offre plusieurs options de centres partenaires. Retrouvez nos services dans les villes proches et choisissez le lieu le plus pratique.`;
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    const faqVariants = [
+      [
+        { question: `Est-ce que je peux vendre ma voiture sans controle technique a ${city} ?`, answer: `Oui, nous rachetons les vehicules sans CT valide a ${city}. L'estimation sera adaptee en fonction de l'etat reel du vehicule.` },
+        { question: `Combien de temps pour vendre sa voiture a ${city} ?`, answer: `L'estimation en ligne prend 2 minutes. Le rendez-vous peut etre pris sous 24h et le paiement est effectue sous 48h apres accord.` },
+        { question: `L'estimation est-elle gratuite a ${city} ?`, answer: `Oui, 100% gratuite et sans engagement. Vous n'avez rien a payer, que vous acceptiez ou non l'offre proposee.` },
+        { question: `Rachetez-vous les vehicules en panne a ${city} ?`, answer: `Oui, nous evaluons et rachetons les vehicules en panne mecanique ou electrique a ${city}. Un expert peut se deplacer si necessaire.` },
+        { question: `Comment se passe le paiement a ${city} ?`, answer: `Apres validation de l'offre en centre, le paiement est effectue par virement bancaire securise sous 24 a 48h. Pas de cheque, pas d'especes.` },
+      ],
+      [
+        { question: `Peut-on vendre une voiture sans CT a ${city} ?`, answer: `Oui, le controle technique n'est pas requis pour nous vendre votre vehicule. Nous ajustons notre proposition selon l'etat du vehicule.` },
+        { question: `En combien de temps puis-je vendre ma voiture a ${city} ?`, answer: `Comptez 2 minutes pour l'estimation en ligne, puis 24 a 48h pour finaliser la vente en centre et recevoir le paiement.` },
+        { question: `L'estimation est-elle vraiment gratuite et sans engagement ?`, answer: `Absolument. Aucun frais de dossier, aucune commission. Vous restez libre a chaque etape du processus.` },
+        { question: `Achetez-vous les vieilles voitures a ${city} ?`, answer: `Oui, l'age du vehicule n'est pas un critere d'exclusion. Nous evaluons tous les modeles, y compris les plus anciens.` },
+        { question: `Quel est le mode de paiement utilise ?`, answer: `Nous procedons exclusivement par virement bancaire securise sous 24 a 48h. C'est simple, rapide et sans risque.` },
+      ],
+    ];
+
+    const generated = {
+      slug, type: 'city', city_name: city,
+      department_slug: gen.deptSlug, department_name: gen.deptName, department_code: gen.deptCode,
+      seo_title: `Rachat voiture a ${city} - Estimation gratuite | Vente Flash Auto`,
+      meta_description: `Vente Flash Auto rachete votre voiture a ${city} rapidement. Estimation gratuite en ligne, reprise sans engagement et paiement sous 48h.`,
+      h1: `Rachat voiture a ${city} - Estimation gratuite et reprise rapide`,
+      intro: pick(intros),
+      sections: [
+        { title: `Comment vendre sa voiture rapidement a ${city} ?`, content: pick(s1Contents) },
+        { title: `Combien vaut votre voiture a ${city} ?`, content: pick(s2Contents) },
+        { title: `Nous rachetons aussi les vehicules particuliers a ${city}`, content: pick(s3Contents) },
+        { title: `Pourquoi choisir Vente Flash Auto a ${city} ?`, content: pick(s4Contents) },
+        { title: `Nos solutions de reprise auto a ${city} et en ${gen.deptName}`, content: s5Content },
+      ],
+      faq: pick(faqVariants),
+      nearby_cities: nearbyList,
+      cta_text: `Estimez votre voiture a ${city}`,
+      trust_block: true, vehicles_block: true, active: true, noindex: false, canonical_override: '',
+    };
+
+    setEditing(generated);
+    setShowGenerator(false);
+    setGen({ city: '', deptSlug: gen.deptSlug, deptName: gen.deptName, deptCode: gen.deptCode, nearby: '' });
+  };
+
   // Editing form
   if (editing) {
     return (
@@ -1008,12 +1096,60 @@ function SeoTab({ authHeaders }) {
         <h2 className="text-white font-bold text-lg">{pages.length} page{pages.length > 1 ? 's' : ''} SEO</h2>
         <div className="flex gap-2">
           <Button onClick={load} variant="ghost" className="text-gray-400 h-8 text-xs"><RefreshCw className="w-3.5 h-3.5" /></Button>
+          <Button onClick={() => setShowGenerator(!showGenerator)}
+            className={`h-8 text-xs px-3 ${showGenerator ? 'bg-green-600 text-white' : 'bg-[#1a1d2e] text-gray-300 border border-white/10'}`} data-testid="seo-generator-toggle">
+            <Zap className="w-3.5 h-3.5 mr-1" /> Generer une ville
+          </Button>
           <Button onClick={() => setEditing({ slug: '', type: 'city', city_name: '', department_slug: 'essonne', department_name: 'Essonne', department_code: '91', seo_title: '', meta_description: '', h1: '', intro: '', sections: [{ title: '', content: '' }], faq: [{ question: '', answer: '' }], nearby_cities: [], cta_text: '', trust_block: true, vehicles_block: true, active: true, noindex: false, canonical_override: '' })}
             className="bg-[#ff4605] text-white h-8 text-xs px-3" data-testid="seo-new-page">
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nouvelle page
+            <Plus className="w-3.5 h-3.5 mr-1" /> Page vide
           </Button>
         </div>
       </div>
+
+      {/* City generator panel */}
+      {showGenerator && (
+        <div className="bg-gradient-to-r from-green-900/20 to-[#1a1d2e] rounded-xl border border-green-500/20 p-5 mb-6 animate-fade-in-up" data-testid="seo-generator-panel">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="w-4 h-4 text-green-400" />
+            <h3 className="text-white font-bold text-sm">Generateur rapide de page ville</h3>
+            <span className="text-[10px] text-green-400/60 ml-2">Remplit automatiquement le template avec contenu unique</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase">Nom de la ville *</label>
+              <Input data-testid="gen-city-name" placeholder="Ex: Massy" value={gen.city} onChange={e => setGen({ ...gen, city: e.target.value })}
+                className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase">Departement slug</label>
+              <Input data-testid="gen-dept-slug" placeholder="essonne" value={gen.deptSlug} onChange={e => setGen({ ...gen, deptSlug: e.target.value })}
+                className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase">Departement nom</label>
+              <Input data-testid="gen-dept-name" placeholder="Essonne" value={gen.deptName} onChange={e => setGen({ ...gen, deptName: e.target.value })}
+                className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-400 mb-1 block uppercase">Code dept</label>
+              <Input data-testid="gen-dept-code" placeholder="91" value={gen.deptCode} onChange={e => setGen({ ...gen, deptCode: e.target.value })}
+                className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="text-[10px] text-gray-400 mb-1 block uppercase">Villes proches (separees par virgule)</label>
+            <Input data-testid="gen-nearby" placeholder="Ex: Palaiseau, Orsay, Longjumeau" value={gen.nearby} onChange={e => setGen({ ...gen, nearby: e.target.value })}
+              className="h-8 bg-[#0f1117] border-white/10 text-white rounded-lg text-xs" />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-600">Le generateur cree le slug, le H1, le title SEO, la meta description, 5 sections, 5 FAQ et les liens internes automatiquement.</p>
+            <Button onClick={generateCityPage} disabled={!gen.city.trim()} className="bg-green-600 hover:bg-green-700 text-white h-9 px-5 text-sm font-bold rounded-lg disabled:opacity-40" data-testid="gen-submit">
+              <Zap className="w-4 h-4 mr-1.5" /> Generer
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         {pages.map(p => (
           <div key={p.id} className="bg-[#1a1d2e] rounded-lg border border-white/5 px-4 py-3 flex items-center gap-3" data-testid={`seo-page-${p.slug}`}>
