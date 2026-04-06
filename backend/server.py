@@ -6,10 +6,13 @@ import os
 import logging
 import uuid
 import requests
+import io
+import re
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+from PIL import Image as PILImage
 
 from services import autobiz_service, pricing_service, hubspot_service, webhook_service
 from services import admin_service, settings_loader
@@ -488,7 +491,10 @@ async def serve_file(path: str):
     if not record:
         raise HTTPException(404, "Fichier non trouve")
     data, ct = get_object(path)
-    return Response(content=data, media_type=record.get("content_type", ct))
+    headers = {}
+    if "seo/" in path:
+        headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return Response(content=data, media_type=record.get("content_type", ct), headers=headers)
 
 # ── GARAGES & APPOINTMENTS (public) ──────────────────────────────────
 
@@ -899,6 +905,73 @@ async def admin_delete_seo_page(page_id: str, request: Request):
     if result.deleted_count == 0:
         raise HTTPException(404, "Page non trouvee")
     return {"deleted": True}
+
+# ── SEO IMAGE UPLOAD ─────────────────────────────────────────────────
+
+ALLOWED_IMAGE_TYPES = {"jpg", "jpeg", "png", "webp"}
+MAX_SEO_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_IMAGE_WIDTH = 1200
+
+def clean_filename(name: str) -> str:
+    """Normalize filename for SEO-friendly URLs."""
+    name = name.lower().strip()
+    import unicodedata
+    name = unicodedata.normalize('NFD', name)
+    name = ''.join(c for c in name if unicodedata.category(c) != 'Mn')
+    name = re.sub(r'[^a-z0-9]+', '-', name)
+    name = name.strip('-')
+    return name or 'image'
+
+def process_image_to_webp(data: bytes, max_width: int = MAX_IMAGE_WIDTH) -> bytes:
+    """Convert image to WebP, resize if needed, optimize."""
+    img = PILImage.open(io.BytesIO(data))
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGBA')
+    else:
+        img = img.convert('RGB')
+    if img.width > max_width:
+        ratio = max_width / img.width
+        new_h = int(img.height * ratio)
+        img = img.resize((max_width, new_h), PILImage.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='WEBP', quality=80, optimize=True)
+    return buf.getvalue()
+
+@api_router.post("/admin/seo-upload")
+async def seo_upload_image(request: Request, file: UploadFile = File(...), slug: str = Query(""), purpose: str = Query("hero")):
+    """Upload and optimize an image for SEO pages."""
+    await require_admin(request)
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(400, f"Type non autorise: .{ext}. Acceptes: {', '.join(ALLOWED_IMAGE_TYPES)}")
+    data = await file.read()
+    if len(data) > MAX_SEO_IMAGE_SIZE:
+        raise HTTPException(400, f"Image trop volumineuse (max {MAX_SEO_IMAGE_SIZE // (1024*1024)} Mo)")
+    try:
+        webp_data = process_image_to_webp(data)
+    except Exception as e:
+        raise HTTPException(400, f"Impossible de traiter l'image: {str(e)}")
+    clean_slug = clean_filename(slug) if slug else "page"
+    clean_purpose = clean_filename(purpose) if purpose else "img"
+    unique_id = uuid.uuid4().hex[:8]
+    filename = f"rachat-voiture-{clean_slug}-{clean_purpose}-{unique_id}.webp"
+    storage_path = f"{APP_NAME}/seo/{filename}"
+    result = put_object(storage_path, webp_data, "image/webp")
+    file_id = str(uuid.uuid4())
+    await db.files.insert_one({
+        "id": file_id,
+        "storage_path": result["path"],
+        "original_filename": file.filename,
+        "content_type": "image/webp",
+        "size": len(webp_data),
+        "original_size": len(data),
+        "purpose": f"seo-{clean_purpose}",
+        "slug": slug,
+        "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    url = f"/api/files/{result['path']}"
+    return {"url": url, "path": result["path"], "size": len(webp_data), "filename": filename}
 
 # ── App setup ────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal, Globe, Zap } from 'lucide-react';
+import { Settings, BarChart3, Users, Lock, LogOut, Plus, Trash2, Eye, EyeOff, Save, RefreshCw, ChevronDown, ChevronUp, MapPin, Calendar, Edit2, X, SlidersHorizontal, Globe, Zap, Upload, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -964,6 +964,7 @@ function SeoTab({ authHeaders }) {
       meta_description: `Vente Flash Auto rachete votre voiture a ${city} rapidement. Estimation gratuite en ligne, reprise sans engagement et paiement sous 48h.`,
       h1: `Rachat voiture a ${city} - Estimation gratuite et reprise rapide`,
       intro: pick(intros),
+      hero_image: '', city_image: '', section_images: [], gallery_vehicles: [],
       sections: [
         { title: `Comment vendre sa voiture rapidement a ${city} ?`, content: pick(s1Contents) },
         { title: `Combien vaut votre voiture a ${city} ?`, content: pick(s2Contents) },
@@ -982,6 +983,26 @@ function SeoTab({ authHeaders }) {
     setGen({ city: '', deptSlug: gen.deptSlug, deptName: gen.deptName, deptCode: gen.deptCode, nearby: '' });
   };
 
+  // Image upload helper
+  const [uploading, setUploading] = useState(false);
+  const uploadImage = async (file, purpose) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const slugParam = editing?.slug || editing?.city_name || 'page';
+      const r = await fetch(`${API}/api/admin/seo-upload?slug=${encodeURIComponent(slugParam)}&purpose=${encodeURIComponent(purpose)}`, {
+        method: 'POST',
+        headers: { Authorization: authHeaders.Authorization },
+        body: fd,
+      });
+      if (!r.ok) { const err = await r.json().catch(() => ({})); alert(err.detail || 'Erreur upload'); setUploading(false); return null; }
+      const data = await r.json();
+      setUploading(false);
+      return data.url;
+    } catch { setUploading(false); alert('Erreur upload'); return null; }
+  };
+
   // Editing form
   if (editing) {
     return (
@@ -990,7 +1011,7 @@ function SeoTab({ authHeaders }) {
           <h2 className="text-white font-bold text-lg">{editing.id ? 'Modifier la page' : 'Nouvelle page SEO'}</h2>
           <div className="flex gap-2">
             <Button onClick={() => setEditing(null)} variant="ghost" className="text-gray-400 h-8 text-xs">Annuler</Button>
-            <Button onClick={handleSave} disabled={saving} className="bg-[#ff4605] text-white h-8 text-xs px-4" data-testid="seo-save">
+            <Button onClick={handleSave} disabled={saving || uploading} className="bg-[#ff4605] text-white h-8 text-xs px-4" data-testid="seo-save">
               {saving ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />} Sauvegarder
             </Button>
           </div>
@@ -1018,31 +1039,110 @@ function SeoTab({ authHeaders }) {
           <SeoArea label="Introduction" value={editing.intro} onChange={v => setEditing({ ...editing, intro: v })} />
           <SeoField label="CTA Text" value={editing.cta_text} onChange={v => setEditing({ ...editing, cta_text: v })} full />
           <SeoField label="Canonical Override (optionnel)" value={editing.canonical_override} onChange={v => setEditing({ ...editing, canonical_override: v })} full />
+
+          {/* ── Images ── */}
+          <div className="border-t border-white/5 pt-4">
+            <label className="text-xs text-gray-400 font-bold uppercase mb-3 block">Images</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <SeoImageUpload
+                label="Image Hero"
+                value={editing.hero_image}
+                onChange={url => setEditing({ ...editing, hero_image: url })}
+                onUpload={f => uploadImage(f, 'hero')}
+                uploading={uploading}
+              />
+              <SeoImageUpload
+                label="Image Ville"
+                value={editing.city_image}
+                onChange={url => setEditing({ ...editing, city_image: url })}
+                onUpload={f => uploadImage(f, 'city')}
+                uploading={uploading}
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <ToggleSmall label="Actif" checked={editing.active !== false} onChange={v => setEditing({ ...editing, active: v })} />
             <ToggleSmall label="Noindex" checked={!!editing.noindex} onChange={v => setEditing({ ...editing, noindex: v })} />
             <ToggleSmall label="Bloc confiance" checked={editing.trust_block !== false} onChange={v => setEditing({ ...editing, trust_block: v })} />
             <ToggleSmall label="Bloc vehicules" checked={editing.vehicles_block !== false} onChange={v => setEditing({ ...editing, vehicles_block: v })} />
           </div>
-          {/* Sections */}
+
+          {/* Sections with image upload */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-gray-400 font-bold uppercase">Sections</label>
               <button onClick={() => setEditing({ ...editing, sections: [...(editing.sections || []), { title: '', content: '' }] })} className="text-[#ff4605] text-xs">+ Ajouter</button>
             </div>
-            {(editing.sections || []).map((s, i) => (
+            {(editing.sections || []).map((s, i) => {
+              const sectionImg = (editing.section_images || []).find(si => si.section_index === i);
+              return (
+                <div key={i} className="bg-[#0f1117] rounded-lg p-3 mb-2 border border-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">Section {i + 1}</span>
+                    <button onClick={() => {
+                      const newSections = editing.sections.filter((_, j) => j !== i);
+                      const newImgs = (editing.section_images || []).filter(si => si.section_index !== i).map(si => si.section_index > i ? { ...si, section_index: si.section_index - 1 } : si);
+                      setEditing({ ...editing, sections: newSections, section_images: newImgs });
+                    }} className="text-red-400 text-xs">Supprimer</button>
+                  </div>
+                  <Input placeholder="Titre" value={s.title} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], title: e.target.value }; setEditing({ ...editing, sections: ns }); }}
+                    className="h-7 bg-transparent border-white/10 text-white rounded text-xs mb-2" />
+                  <textarea placeholder="Contenu" value={s.content} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], content: e.target.value }; setEditing({ ...editing, sections: ns }); }}
+                    className="w-full min-h-[60px] bg-transparent border border-white/10 text-white rounded text-xs p-2 resize-y mb-2" />
+                  <SeoImageUpload
+                    label={`Image section ${i + 1}`}
+                    value={sectionImg?.url}
+                    onChange={url => {
+                      const imgs = (editing.section_images || []).filter(si => si.section_index !== i);
+                      if (url) imgs.push({ section_index: i, url });
+                      setEditing({ ...editing, section_images: imgs });
+                    }}
+                    onUpload={f => uploadImage(f, `section-${i}`)}
+                    uploading={uploading}
+                    compact
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Gallery Vehicles */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400 font-bold uppercase">Vehicules galerie</label>
+              <button onClick={() => setEditing({ ...editing, gallery_vehicles: [...(editing.gallery_vehicles || []), { image: '', model: '', city: '', delay: 'Rachete en 24h' }] })} className="text-[#ff4605] text-xs">+ Ajouter</button>
+            </div>
+            {(editing.gallery_vehicles || []).map((v, i) => (
               <div key={i} className="bg-[#0f1117] rounded-lg p-3 mb-2 border border-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500">Section {i + 1}</span>
-                  <button onClick={() => setEditing({ ...editing, sections: editing.sections.filter((_, j) => j !== i) })} className="text-red-400 text-xs">Supprimer</button>
+                  <span className="text-xs text-gray-500">Vehicule {i + 1}</span>
+                  <div className="flex gap-2">
+                    {i > 0 && <button onClick={() => { const nv = [...editing.gallery_vehicles]; [nv[i-1], nv[i]] = [nv[i], nv[i-1]]; setEditing({ ...editing, gallery_vehicles: nv }); }} className="text-gray-500 text-xs hover:text-white">&#8593;</button>}
+                    {i < (editing.gallery_vehicles || []).length - 1 && <button onClick={() => { const nv = [...editing.gallery_vehicles]; [nv[i], nv[i+1]] = [nv[i+1], nv[i]]; setEditing({ ...editing, gallery_vehicles: nv }); }} className="text-gray-500 text-xs hover:text-white">&#8595;</button>}
+                    <button onClick={() => setEditing({ ...editing, gallery_vehicles: editing.gallery_vehicles.filter((_, j) => j !== i) })} className="text-red-400 text-xs">X</button>
+                  </div>
                 </div>
-                <Input placeholder="Titre" value={s.title} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], title: e.target.value }; setEditing({ ...editing, sections: ns }); }}
-                  className="h-7 bg-transparent border-white/10 text-white rounded text-xs mb-2" />
-                <textarea placeholder="Contenu" value={s.content} onChange={e => { const ns = [...editing.sections]; ns[i] = { ...ns[i], content: e.target.value }; setEditing({ ...editing, sections: ns }); }}
-                  className="w-full min-h-[60px] bg-transparent border border-white/10 text-white rounded text-xs p-2 resize-y" />
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  <Input placeholder="Modele (ex: Peugeot 3008)" value={v.model} onChange={e => { const nv = [...editing.gallery_vehicles]; nv[i] = { ...nv[i], model: e.target.value }; setEditing({ ...editing, gallery_vehicles: nv }); }}
+                    className="h-7 bg-transparent border-white/10 text-white rounded text-xs" />
+                  <Input placeholder="Ville" value={v.city} onChange={e => { const nv = [...editing.gallery_vehicles]; nv[i] = { ...nv[i], city: e.target.value }; setEditing({ ...editing, gallery_vehicles: nv }); }}
+                    className="h-7 bg-transparent border-white/10 text-white rounded text-xs" />
+                  <Input placeholder="Delai" value={v.delay} onChange={e => { const nv = [...editing.gallery_vehicles]; nv[i] = { ...nv[i], delay: e.target.value }; setEditing({ ...editing, gallery_vehicles: nv }); }}
+                    className="h-7 bg-transparent border-white/10 text-white rounded text-xs" />
+                </div>
+                <SeoImageUpload
+                  label="Photo vehicule"
+                  value={v.image}
+                  onChange={url => { const nv = [...editing.gallery_vehicles]; nv[i] = { ...nv[i], image: url }; setEditing({ ...editing, gallery_vehicles: nv }); }}
+                  onUpload={f => uploadImage(f, `vehicle-${i}`)}
+                  uploading={uploading}
+                  compact
+                />
               </div>
             ))}
           </div>
+
           {/* FAQ */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1206,6 +1306,68 @@ function Detail({ label, value }) {
     <div>
       <span className="text-gray-500">{label}</span>
       <p className="text-gray-300 font-medium truncate">{value || '—'}</p>
+    </div>
+  );
+}
+
+function SeoImageUpload({ label, value, onChange, onUpload, uploading, compact }) {
+  const inputRef = useRef(null);
+  const resolved = value ? (value.startsWith('http') ? value : `${API}${value}`) : '';
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await onUpload(file);
+    if (url) onChange(url);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        {resolved ? (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <img src={resolved} alt={label} className="w-8 h-8 rounded object-cover shrink-0 border border-white/10" />
+            <span className="text-[10px] text-gray-500 truncate flex-1">{value}</span>
+            <button onClick={() => onChange('')} className="text-red-400 text-xs shrink-0">X</button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer hover:text-[#ff4605] transition">
+            <Upload className="w-3 h-3" /> {uploading ? 'Upload...' : label}
+            <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFile} className="hidden" disabled={uploading} />
+          </label>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#0f1117] rounded-lg border border-white/5 p-3">
+      <label className="text-[10px] text-gray-500 mb-2 block uppercase tracking-wide">{label}</label>
+      {resolved ? (
+        <div className="flex items-start gap-3">
+          <img src={resolved} alt={label} className="w-24 h-16 rounded-lg object-cover border border-white/10" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-gray-600 truncate mb-2">{value}</p>
+            <div className="flex gap-2">
+              <label className="text-xs text-[#ff4605] cursor-pointer hover:underline flex items-center gap-1">
+                <Upload className="w-3 h-3" /> Remplacer
+                <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFile} className="hidden" disabled={uploading} />
+              </label>
+              <button onClick={() => onChange('')} className="text-xs text-red-400 hover:underline flex items-center gap-1">
+                <Trash2 className="w-3 h-3" /> Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-lg p-4 cursor-pointer hover:border-[#ff4605]/30 transition group">
+          <ImageIcon className="w-6 h-6 text-gray-600 group-hover:text-[#ff4605] transition mb-1" />
+          <span className="text-xs text-gray-500 group-hover:text-gray-400">{uploading ? 'Upload en cours...' : 'Cliquer pour uploader'}</span>
+          <span className="text-[10px] text-gray-700 mt-1">JPG, PNG, WebP · Max 5 Mo</span>
+          <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp" onChange={handleFile} className="hidden" disabled={uploading} />
+        </label>
+      )}
     </div>
   );
 }
